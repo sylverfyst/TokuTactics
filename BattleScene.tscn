@@ -1,0 +1,40 @@
+[gd_scene load_steps=5 format=3 uid="uid://battle_scene_001"]
+
+[ext_resource type="Script" path="res://Presentation/Battle/BattleController.cs" id="1_bc123"]
+[ext_resource type="Script" path="res://Presentation/Battle/GridView.cs" id="2_gv456"]
+[ext_resource type="Script" path="res://Presentation/UI/TurnDisplay.cs" id="3_td789"]
+[ext_resource type="Script" path="res://Presentation/UI/ActionMenu.cs" id="4_am012"]
+
+[node name="BattleScene" type="Node"]
+
+[node name="BattleController" type="Node" parent="."]
+script = ExtResource("1_bc123")
+
+[node name="GridView" type="Node2D" parent="BattleController"]
+script = ExtResource("2_gv456")
+
+[node name="UI" type="Control" parent="BattleController"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TurnDisplay" type="Control" parent="BattleController/UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_td789")
+
+[node name="ActionMenu" type="Control" parent="BattleController/UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_am012")

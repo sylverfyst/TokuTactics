@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://b2qvxg3yjn8qy"]
+
+[ext_resource type="Script" path="res://TestScene.cs" id="1_x5m8r"]
+
+[node name="TestScene" type="Node"]
+script = ExtResource("1_x5m8r")
+
+[node name="Label" type="Label" parent="."]
+offset_right = 800.0
+offset_bottom = 600.0
+text = "Toku Tactics - Test Scene
+Initializing game systems...
+Check console for output."
+horizontal_alignment = 1
+vertical_alignment = 1

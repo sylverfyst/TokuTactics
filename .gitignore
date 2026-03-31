@@ -1,0 +1,26 @@
+# Godot 4+ specific ignores
+.godot/
+.mono/
+data_*/
+mono_crash.*.json
+
+# Mono/C# specific ignores
+bin/
+obj/
+*.csproj.user
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# IDE specific
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
