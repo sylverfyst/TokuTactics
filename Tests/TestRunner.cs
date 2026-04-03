@@ -55,6 +55,17 @@ namespace TokuTactics.Tests
             // Content
             RunSuite("Content", Data.ContentTests.RunAll, ref passed, ref failed);
 
+            // BCO Bricks - Combat
+            RunSuite("CalculateBaseDamage", Bricks.Combat.CalculateBaseDamageTests.Run, ref passed, ref failed);
+            RunSuite("RollDodge", Bricks.Combat.RollDodgeTests.Run, ref passed, ref failed);
+            RunSuite("ApplyTypeMatchup", Bricks.Combat.ApplyTypeMatchupTests.Run, ref passed, ref failed);
+            RunSuite("CalculateSameTypeBonus", Bricks.Combat.CalculateSameTypeBonusTests.Run, ref passed, ref failed);
+            RunSuite("RollCrit", Bricks.Combat.RollCritTests.Run, ref passed, ref failed);
+            RunSuite("ApplyComboScaling", Bricks.Combat.ApplyComboScalingTests.Run, ref passed, ref failed);
+
+            // BCO Commands - Combat
+            RunSuite("ResolveDamageRoll", Commands.Combat.ResolveDamageRollTests.Run, ref passed, ref failed);
+
             Console.WriteLine($"\n=== Results: {passed} suites passed, {failed} suites failed ===");
 
             if (failed > 0)
