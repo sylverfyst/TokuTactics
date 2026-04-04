@@ -1,452 +1,363 @@
 using System;
 using TokuTactics.Commands.Combat;
+using TokuTactics.Core.Combat;
 using TokuTactics.Core.Types;
 
 namespace TokuTactics.Tests.Commands.Combat
 {
     /// <summary>
     /// Tests for ResolveDamageRoll command.
-    /// Uses mocks to verify orchestration: correct bricks called in correct order.
+    /// Tests the full orchestration flow with real bricks.
+    /// Uses deterministic RNG to verify correct behavior.
     /// </summary>
     public static class ResolveDamageRollTests
     {
         public static void Run()
         {
-            Test_DodgeEarlyReturn_NoBricksCalledAfterDodge();
-            Test_NotDodged_AllBricksCalledInOrder();
-            Test_NotDodged_WithSTAB_CorrectBricksUsed();
-            Test_NotDodged_WithoutSTAB_STABBrickSkipped();
-            Test_CorrectParametersPassed();
+            Test_Dodge_ReturnsZeroDamage();
+            Test_NoDodge_NoCrit_CalculatesCorrectDamage();
+            Test_WithCrit_AppliesCritMultiplier();
+            Test_WithSTAB_AppliesSameTypeBonus();
+            Test_WithoutSTAB_SkipsSameTypeBonus();
+            Test_TypeMatchup_AppliesCorrectly();
+            Test_ComboScaling_AppliesCorrectly();
+            Test_MinimumDamage_IsOne();
             Console.WriteLine("ResolveDamageRollTests: All passed");
         }
 
-        private static void Test_DodgeEarlyReturn_NoBricksCalledAfterDodge()
+        private static void Test_Dodge_ReturnsZeroDamage()
         {
-            // Arrange
-            var tracker = new BrickCallTracker();
-            var mockBricks = new MockBricks(tracker);
-            mockBricks.RollDodgeMock.ReturnValue = true; // Dodge succeeds
-
-            var ctx = CreateTestContext();
-
-            // Act
-            var result = ResolveDamageRoll.Execute(
-                ctx.Params, ctx.TypeChart, ctx.Rng, ctx.Constants,
-                mockBricks.RollDodge, mockBricks.CalculateBaseDamage,
-                mockBricks.ApplyTypeMatchup, mockBricks.CalculateSameTypeBonus,
-                mockBricks.ApplyComboScaling, mockBricks.RollCrit);
-
-            // Assert
-            Assert.IsTrue(result.WasDodged, "Result should indicate dodge");
-            Assert.AreEqual(0, result.FinalDamage, "Dodged attacks deal 0 damage");
-            Assert.AreEqual(1, tracker.GetCallCount("RollDodge"), "RollDodge should be called once");
-            Assert.AreEqual(0, tracker.GetCallCount("CalculateBaseDamage"), "CalculateBaseDamage should not be called");
-            Assert.AreEqual(0, tracker.GetCallCount("ApplyTypeMatchup"), "ApplyTypeMatchup should not be called");
-            Assert.AreEqual(0, tracker.GetCallCount("RollCrit"), "RollCrit should not be called");
-        }
-
-        private static void Test_NotDodged_AllBricksCalledInOrder()
-        {
-            // Arrange
-            var tracker = new BrickCallTracker();
-            var mockBricks = new MockBricks(tracker);
-            mockBricks.RollDodgeMock.ReturnValue = false; // No dodge
-            mockBricks.CalculateBaseDamageMock.ReturnValue = 50f;
-            mockBricks.ApplyTypeMatchupMock.ReturnValue = new TypeMatchupResult
-            {
-                Damage = 75f,
-                Result = MatchupResult.Strong,
-                Multiplier = 1.5f
-            };
-            mockBricks.CalculateSameTypeBonusMock.ReturnValue = 93.75f; // 75 * 1.25
-            mockBricks.ApplyComboScalingMock.ReturnValue = 75f; // 93.75 * 0.8
-            mockBricks.RollCritMock.ReturnValue = false;
-
-            var ctx = CreateTestContext(hasSTAB: true, comboMultiplier: 0.8f);
-
-            // Act
-            var result = ResolveDamageRoll.Execute(
-                ctx.Params, ctx.TypeChart, ctx.Rng, ctx.Constants,
-                mockBricks.RollDodge, mockBricks.CalculateBaseDamage,
-                mockBricks.ApplyTypeMatchup, mockBricks.CalculateSameTypeBonus,
-                mockBricks.ApplyComboScaling, mockBricks.RollCrit);
-
-            // Assert: Verify call order
-            var callOrder = tracker.GetCallOrder();
-            Assert.AreEqual("RollDodge", callOrder[0], "RollDodge should be called first");
-            Assert.AreEqual("CalculateBaseDamage", callOrder[1], "CalculateBaseDamage should be second");
-            Assert.AreEqual("ApplyTypeMatchup", callOrder[2], "ApplyTypeMatchup should be third");
-            Assert.AreEqual("CalculateSameTypeBonus", callOrder[3], "CalculateSameTypeBonus should be fourth");
-            Assert.AreEqual("ApplyComboScaling", callOrder[4], "ApplyComboScaling should be fifth");
-            Assert.AreEqual("RollCrit", callOrder[5], "RollCrit should be last");
-
-            // Verify result
-            Assert.IsFalse(result.WasDodged, "Should not be dodged");
-            Assert.IsTrue(result.FinalDamage > 0, "Should deal damage");
-        }
-
-        private static void Test_NotDodged_WithSTAB_CorrectBricksUsed()
-        {
-            // Arrange
-            var tracker = new BrickCallTracker();
-            var mockBricks = new MockBricks(tracker);
-            mockBricks.RollDodgeMock.ReturnValue = false;
-            mockBricks.CalculateBaseDamageMock.ReturnValue = 100f;
-            mockBricks.ApplyTypeMatchupMock.ReturnValue = new TypeMatchupResult
-            {
-                Damage = 100f,
-                Result = MatchupResult.Neutral,
-                Multiplier = 1.0f
-            };
-            mockBricks.CalculateSameTypeBonusMock.ReturnValue = 125f;
-            mockBricks.ApplyComboScalingMock.ReturnValue = 125f;
-            mockBricks.RollCritMock.ReturnValue = false;
-
-            var ctx = CreateTestContext(hasSTAB: true);
-
-            // Act
-            var result = ResolveDamageRoll.Execute(
-                ctx.Params, ctx.TypeChart, ctx.Rng, ctx.Constants,
-                mockBricks.RollDodge, mockBricks.CalculateBaseDamage,
-                mockBricks.ApplyTypeMatchup, mockBricks.CalculateSameTypeBonus,
-                mockBricks.ApplyComboScaling, mockBricks.RollCrit);
-
-            // Assert
-            Assert.AreEqual(1, tracker.GetCallCount("CalculateSameTypeBonus"),
-                "CalculateSameTypeBonus should be called when STAB is present");
-            Assert.IsTrue(result.HadSameTypeBonus, "Result should indicate STAB was applied");
-        }
-
-        private static void Test_NotDodged_WithoutSTAB_STABBrickSkipped()
-        {
-            // Arrange
-            var tracker = new BrickCallTracker();
-            var mockBricks = new MockBricks(tracker);
-            mockBricks.RollDodgeMock.ReturnValue = false;
-            mockBricks.CalculateBaseDamageMock.ReturnValue = 100f;
-            mockBricks.ApplyTypeMatchupMock.ReturnValue = new TypeMatchupResult
-            {
-                Damage = 100f,
-                Result = MatchupResult.Neutral,
-                Multiplier = 1.0f
-            };
-            mockBricks.ApplyComboScalingMock.ReturnValue = 100f;
-            mockBricks.RollCritMock.ReturnValue = false;
-
-            var ctx = CreateTestContext(hasSTAB: false);
-
-            // Act
-            var result = ResolveDamageRoll.Execute(
-                ctx.Params, ctx.TypeChart, ctx.Rng, ctx.Constants,
-                mockBricks.RollDodge, mockBricks.CalculateBaseDamage,
-                mockBricks.ApplyTypeMatchup, mockBricks.CalculateSameTypeBonus,
-                mockBricks.ApplyComboScaling, mockBricks.RollCrit);
-
-            // Assert
-            Assert.AreEqual(0, tracker.GetCallCount("CalculateSameTypeBonus"),
-                "CalculateSameTypeBonus should NOT be called when no STAB");
-            Assert.IsFalse(result.HadSameTypeBonus, "Result should indicate no STAB");
-        }
-
-        private static void Test_CorrectParametersPassed()
-        {
-            // Arrange
-            var tracker = new BrickCallTracker();
-            var mockBricks = new MockBricks(tracker);
-            mockBricks.RollDodgeMock.ReturnValue = false;
-            mockBricks.CalculateBaseDamageMock.ReturnValue = 100f;
-            mockBricks.ApplyTypeMatchupMock.ReturnValue = new TypeMatchupResult
-            {
-                Damage = 150f,
-                Result = MatchupResult.Strong,
-                Multiplier = 1.5f
-            };
-            mockBricks.ApplyComboScalingMock.ReturnValue = 120f; // 150 * 0.8
-            mockBricks.RollCritMock.ReturnValue = true;
-
-            var ctx = CreateTestContext(
-                attackerStr: 20f,
-                defenderDef: 10f,
-                actionPower: 5f,
-                comboMultiplier: 0.8f);
-
-            // Act
-            var result = ResolveDamageRoll.Execute(
-                ctx.Params, ctx.TypeChart, ctx.Rng, ctx.Constants,
-                mockBricks.RollDodge, mockBricks.CalculateBaseDamage,
-                mockBricks.ApplyTypeMatchup, mockBricks.CalculateSameTypeBonus,
-                mockBricks.ApplyComboScaling, mockBricks.RollCrit);
-
-            // Assert: Verify correct parameters were passed
-            var baseDamageCall = mockBricks.CalculateBaseDamageMock.LastCall;
-            Assert.AreEqual(20f, baseDamageCall.AttackerStr, "Correct STR passed to CalculateBaseDamage");
-            Assert.AreEqual(10f, baseDamageCall.DefenderDef, "Correct DEF passed to CalculateBaseDamage");
-            Assert.AreEqual(5f, baseDamageCall.ActionPower, "Correct power passed to CalculateBaseDamage");
-
-            var comboCall = mockBricks.ApplyComboScalingMock.LastCall;
-            Assert.AreEqual(0.8f, comboCall.ComboMultiplier, "Correct combo multiplier passed");
-
-            // Verify crit was applied
-            Assert.IsTrue(result.WasCrit, "Result should indicate crit");
-        }
-
-        // === Test Infrastructure ===
-
-        private static TestContext CreateTestContext(
-            float attackerStr = 10f,
-            float defenderDef = 5f,
-            float actionPower = 1f,
-            bool hasSTAB = false,
-            float comboMultiplier = 1f)
-        {
-            var typeChart = new TypeChart();
-            typeChart.AddStrength(ElementalType.Blaze, ElementalType.Frost);
-
-            var attackerType = hasSTAB
-                ? new DualType(ElementalType.Blaze, ElementalType.Blaze)
-                : new DualType(ElementalType.Blaze, ElementalType.Frost);
-
-            var @params = new ResolveDamageRollParams
-            {
-                AttackerStr = attackerStr,
-                AttackerLck = 0f,
-                DefenderDef = defenderDef,
-                DefenderLck = 0f,
-                ActionPower = actionPower,
-                AttackType = attackerType.FormType,
-                DefenderType = ElementalType.Normal,
-                DefenderDualType = null,
-                ComboMultiplier = comboMultiplier,
-                HasSameTypeBonus = hasSTAB
-            };
-
+            // Arrange: High dodge chance to guarantee dodge
+            var typeChart = BuildTestChart();
             var constants = new TunableConstants
             {
-                BaseDodge = 0.02f,
-                LckDodgeScale = 0.003f,
-                BaseCrit = 0.05f,
-                LckCritScale = 0.005f,
+                BaseDodge = 1.0f, // 100% dodge
+                LckDodgeScale = 0f
+            };
+            var @params = new ResolveDamageRollParams
+            {
+                AttackerStr = 10f,
+                AttackerLck = 0f,
+                DefenderDef = 5f,
+                DefenderLck = 0f,
+                ActionPower = 1f,
+                AttackType = new DualType(ElementalType.Blaze, ElementalType.Blaze),
+                DefenderType = ElementalType.Normal,
+                DefenderDualType = null,
+                ComboMultiplier = 1f,
+                HasSameTypeBonus = false
+            };
+
+            // Act
+            var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
+
+            // Assert
+            Assert.IsTrue(result.WasDodged, "Attack should be dodged");
+            Assert.AreEqual(0, result.FinalDamage, "Dodged attacks deal 0 damage");
+        }
+
+        private static void Test_NoDodge_NoCrit_CalculatesCorrectDamage()
+        {
+            // Arrange: No dodge, no crit, neutral matchup
+            var typeChart = BuildTestChart();
+            var constants = new TunableConstants
+            {
+                BaseDodge = 0f,
+                BaseCrit = 0f,
+                StrongMultiplier = 1.5f,
+                WeakMultiplier = 0.5f,
+                DoubleStrongMultiplier = 2.0f,
+                DoubleWeakMultiplier = 0.25f
+            };
+            var @params = new ResolveDamageRollParams
+            {
+                AttackerStr = 10f,
+                AttackerLck = 0f,
+                DefenderDef = 5f,
+                DefenderLck = 0f,
+                ActionPower = 2f,
+                AttackType = new DualType(ElementalType.Normal, ElementalType.Normal),
+                DefenderType = ElementalType.Normal,
+                DefenderDualType = null,
+                ComboMultiplier = 1f,
+                HasSameTypeBonus = false
+            };
+
+            // Act
+            var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
+
+            // Assert: (10 - 5) * 2 = 10 damage
+            Assert.IsFalse(result.WasDodged, "Should not dodge");
+            Assert.IsFalse(result.WasCritical, "Should not crit");
+            Assert.AreEqual(10, result.FinalDamage, "Should deal 10 damage");
+            Assert.AreEqual(MatchupResult.Neutral, result.Matchup, "Should be neutral matchup");
+        }
+
+        private static void Test_WithCrit_AppliesCritMultiplier()
+        {
+            // Arrange: Guaranteed crit
+            var typeChart = BuildTestChart();
+            var constants = new TunableConstants
+            {
+                BaseDodge = 0f,
+                BaseCrit = 1.0f, // 100% crit
+                LckCritScale = 0f,
                 CritMultiplier = 1.5f,
+                StrongMultiplier = 1.5f,
+                WeakMultiplier = 0.5f,
+                DoubleStrongMultiplier = 2.0f,
+                DoubleWeakMultiplier = 0.25f
+            };
+            var @params = new ResolveDamageRollParams
+            {
+                AttackerStr = 10f,
+                AttackerLck = 0f,
+                DefenderDef = 5f,
+                DefenderLck = 0f,
+                ActionPower = 2f,
+                AttackType = new DualType(ElementalType.Normal, ElementalType.Normal),
+                DefenderType = ElementalType.Normal,
+                DefenderDualType = null,
+                ComboMultiplier = 1f,
+                HasSameTypeBonus = false
+            };
+
+            // Act
+            var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
+
+            // Assert: (10 - 5) * 2 = 10, then * 1.5 crit = 15
+            Assert.IsTrue(result.WasCritical, "Should crit");
+            Assert.AreEqual(15, result.FinalDamage, "Should deal 15 damage with crit");
+        }
+
+        private static void Test_WithSTAB_AppliesSameTypeBonus()
+        {
+            // Arrange: With STAB
+            var typeChart = BuildTestChart();
+            var constants = new TunableConstants
+            {
+                BaseDodge = 0f,
+                BaseCrit = 0f,
                 SameTypeBonus = 1.25f,
                 StrongMultiplier = 1.5f,
                 WeakMultiplier = 0.5f,
                 DoubleStrongMultiplier = 2.0f,
                 DoubleWeakMultiplier = 0.25f
             };
-
-            return new TestContext
+            var @params = new ResolveDamageRollParams
             {
-                Params = @params,
-                TypeChart = typeChart,
-                Rng = new Random(42),
-                Constants = constants
+                AttackerStr = 10f,
+                AttackerLck = 0f,
+                DefenderDef = 5f,
+                DefenderLck = 0f,
+                ActionPower = 2f,
+                AttackType = new DualType(ElementalType.Blaze, ElementalType.Blaze),
+                DefenderType = ElementalType.Normal,
+                DefenderDualType = null,
+                ComboMultiplier = 1f,
+                HasSameTypeBonus = true
             };
+
+            // Act
+            var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
+
+            // Assert: (10 - 5) * 2 = 10, then * 1.25 STAB = 12.5, rounded = 13
+            Assert.IsTrue(result.HadSameTypeBonus, "Should have STAB");
+            Assert.AreEqual(13, result.FinalDamage, "Should deal 13 damage with STAB (12.5 rounded up)");
         }
 
-        private class TestContext
+        private static void Test_WithoutSTAB_SkipsSameTypeBonus()
         {
-            public ResolveDamageRollParams Params { get; set; }
-            public TypeChart TypeChart { get; set; }
-            public Random Rng { get; set; }
-            public TunableConstants Constants { get; set; }
+            // Arrange: No STAB
+            var typeChart = BuildTestChart();
+            var constants = new TunableConstants
+            {
+                BaseDodge = 0f,
+                BaseCrit = 0f,
+                SameTypeBonus = 1.25f,
+                StrongMultiplier = 1.5f,
+                WeakMultiplier = 0.5f,
+                DoubleStrongMultiplier = 2.0f,
+                DoubleWeakMultiplier = 0.25f
+            };
+            var @params = new ResolveDamageRollParams
+            {
+                AttackerStr = 10f,
+                AttackerLck = 0f,
+                DefenderDef = 5f,
+                DefenderLck = 0f,
+                ActionPower = 2f,
+                AttackType = new DualType(ElementalType.Blaze, ElementalType.Blaze),
+                DefenderType = ElementalType.Normal,
+                DefenderDualType = null,
+                ComboMultiplier = 1f,
+                HasSameTypeBonus = false
+            };
+
+            // Act
+            var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
+
+            // Assert: (10 - 5) * 2 = 10, no STAB
+            Assert.IsFalse(result.HadSameTypeBonus, "Should not have STAB");
+            Assert.AreEqual(10, result.FinalDamage, "Should deal 10 damage without STAB");
         }
 
-        // === Mock Infrastructure ===
-
-        private class BrickCallTracker
+        private static void Test_TypeMatchup_AppliesCorrectly()
         {
-            private readonly System.Collections.Generic.List<string> _callOrder = new();
-            private readonly System.Collections.Generic.Dictionary<string, int> _callCounts = new();
-
-            public void RecordCall(string brickName)
+            // Arrange: Strong matchup (Blaze vs Frost)
+            var typeChart = BuildTestChart();
+            var constants = new TunableConstants
             {
-                _callOrder.Add(brickName);
-                if (!_callCounts.ContainsKey(brickName))
-                    _callCounts[brickName] = 0;
-                _callCounts[brickName]++;
-            }
-
-            public int GetCallCount(string brickName)
+                BaseDodge = 0f,
+                BaseCrit = 0f,
+                StrongMultiplier = 1.5f,
+                WeakMultiplier = 0.5f,
+                DoubleStrongMultiplier = 2.0f,
+                DoubleWeakMultiplier = 0.25f
+            };
+            var @params = new ResolveDamageRollParams
             {
-                return _callCounts.ContainsKey(brickName) ? _callCounts[brickName] : 0;
-            }
+                AttackerStr = 10f,
+                AttackerLck = 0f,
+                DefenderDef = 5f,
+                DefenderLck = 0f,
+                ActionPower = 2f,
+                AttackType = new DualType(ElementalType.Blaze, ElementalType.Blaze),
+                DefenderType = ElementalType.Frost,
+                DefenderDualType = null,
+                ComboMultiplier = 1f,
+                HasSameTypeBonus = false
+            };
 
-            public System.Collections.Generic.List<string> GetCallOrder() => _callOrder;
+            // Act
+            var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
+
+            // Assert: (10 - 5) * 2 = 10, then * 1.5 type = 15
+            Assert.AreEqual(MatchupResult.Strong, result.Matchup, "Should be strong matchup");
+            Assert.AreEqual(1.5f, result.TypeMultiplier, "Type multiplier should be 1.5");
+            Assert.AreEqual(15, result.FinalDamage, "Should deal 15 damage with strong matchup");
         }
 
-        private class MockBricks
+        private static void Test_ComboScaling_AppliesCorrectly()
         {
-            private readonly BrickCallTracker _tracker;
-
-            public MockRollDodge RollDodgeMock { get; }
-            public MockCalculateBaseDamage CalculateBaseDamageMock { get; }
-            public MockApplyTypeMatchup ApplyTypeMatchupMock { get; }
-            public MockCalculateSameTypeBonus CalculateSameTypeBonusMock { get; }
-            public MockApplyComboScaling ApplyComboScalingMock { get; }
-            public MockRollCrit RollCritMock { get; }
-
-            public Func<float, float, float, Random, bool> RollDodge { get; }
-            public Func<float, float, float, float> CalculateBaseDamage { get; }
-            public Func<float, ElementalType, ElementalType, DualType?, TypeChart, float, float, float, float, TypeMatchupResult> ApplyTypeMatchup { get; }
-            public Func<float, float, float> CalculateSameTypeBonus { get; }
-            public Func<float, float, float> ApplyComboScaling { get; }
-            public Func<float, float, float, Random, bool> RollCrit { get; }
-
-            public MockBricks(BrickCallTracker tracker)
+            // Arrange: Combo scaling
+            var typeChart = BuildTestChart();
+            var constants = new TunableConstants
             {
-                _tracker = tracker;
-                RollDodgeMock = new MockRollDodge(tracker);
-                CalculateBaseDamageMock = new MockCalculateBaseDamage(tracker);
-                ApplyTypeMatchupMock = new MockApplyTypeMatchup(tracker);
-                CalculateSameTypeBonusMock = new MockCalculateSameTypeBonus(tracker);
-                ApplyComboScalingMock = new MockApplyComboScaling(tracker);
-                RollCritMock = new MockRollCrit(tracker);
+                BaseDodge = 0f,
+                BaseCrit = 0f,
+                StrongMultiplier = 1.5f,
+                WeakMultiplier = 0.5f,
+                DoubleStrongMultiplier = 2.0f,
+                DoubleWeakMultiplier = 0.25f
+            };
+            var @params = new ResolveDamageRollParams
+            {
+                AttackerStr = 10f,
+                AttackerLck = 0f,
+                DefenderDef = 5f,
+                DefenderLck = 0f,
+                ActionPower = 2f,
+                AttackType = new DualType(ElementalType.Normal, ElementalType.Normal),
+                DefenderType = ElementalType.Normal,
+                DefenderDualType = null,
+                ComboMultiplier = 0.8f, // 80% damage for combo
+                HasSameTypeBonus = false
+            };
 
-                RollDodge = RollDodgeMock.Execute;
-                CalculateBaseDamage = CalculateBaseDamageMock.Execute;
-                ApplyTypeMatchup = ApplyTypeMatchupMock.Execute;
-                CalculateSameTypeBonus = CalculateSameTypeBonusMock.Execute;
-                ApplyComboScaling = ApplyComboScalingMock.Execute;
-                RollCrit = RollCritMock.Execute;
-            }
+            // Act
+            var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
+
+            // Assert: (10 - 5) * 2 = 10, then * 0.8 combo = 8
+            Assert.AreEqual(0.8f, result.ComboMultiplier, "Combo multiplier should be 0.8");
+            Assert.AreEqual(8, result.FinalDamage, "Should deal 8 damage with combo scaling");
         }
 
-        private class MockRollDodge
+        private static void Test_MinimumDamage_IsOne()
         {
-            private readonly BrickCallTracker _tracker;
-            public bool ReturnValue { get; set; }
-
-            public MockRollDodge(BrickCallTracker tracker) => _tracker = tracker;
-
-            public bool Execute(float defenderLck, float baseDodge, float lckScale, Random rng)
+            // Arrange: Very weak attack
+            var typeChart = BuildTestChart();
+            var constants = new TunableConstants
             {
-                _tracker.RecordCall("RollDodge");
-                return ReturnValue;
-            }
+                BaseDodge = 0f,
+                BaseCrit = 0f,
+                StrongMultiplier = 1.5f,
+                WeakMultiplier = 0.5f,
+                DoubleStrongMultiplier = 2.0f,
+                DoubleWeakMultiplier = 0.25f
+            };
+            var @params = new ResolveDamageRollParams
+            {
+                AttackerStr = 1f,
+                AttackerLck = 0f,
+                DefenderDef = 10f,
+                DefenderLck = 0f,
+                ActionPower = 0.1f,
+                AttackType = new DualType(ElementalType.Blaze, ElementalType.Blaze),
+                DefenderType = ElementalType.Torrent, // Weak matchup
+                DefenderDualType = null,
+                ComboMultiplier = 0.5f,
+                HasSameTypeBonus = false
+            };
+
+            // Act
+            var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
+
+            // Assert: Even tiny damage should be at least 1
+            Assert.AreEqual(1, result.FinalDamage, "Minimum damage should be 1");
         }
 
-        private class MockCalculateBaseDamage
+        private static TypeChart BuildTestChart()
         {
-            private readonly BrickCallTracker _tracker;
-            public float ReturnValue { get; set; }
-            public (float AttackerStr, float DefenderDef, float ActionPower) LastCall { get; private set; }
-
-            public MockCalculateBaseDamage(BrickCallTracker tracker) => _tracker = tracker;
-
-            public float Execute(float attackerStr, float defenderDef, float actionPower)
-            {
-                _tracker.RecordCall("CalculateBaseDamage");
-                LastCall = (attackerStr, defenderDef, actionPower);
-                return ReturnValue;
-            }
-        }
-
-        private class MockApplyTypeMatchup
-        {
-            private readonly BrickCallTracker _tracker;
-            public TypeMatchupResult ReturnValue { get; set; }
-
-            public MockApplyTypeMatchup(BrickCallTracker tracker) => _tracker = tracker;
-
-            public TypeMatchupResult Execute(
-                float baseDamage, ElementalType attackType, ElementalType defenderType,
-                DualType? defenderDualType, TypeChart chart,
-                float strongMult, float weakMult, float doubleStrongMult, float doubleWeakMult)
-            {
-                _tracker.RecordCall("ApplyTypeMatchup");
-                return ReturnValue;
-            }
-        }
-
-        private class MockCalculateSameTypeBonus
-        {
-            private readonly BrickCallTracker _tracker;
-            public float ReturnValue { get; set; }
-
-            public MockCalculateSameTypeBonus(BrickCallTracker tracker) => _tracker = tracker;
-
-            public float Execute(float damage, float stabMultiplier)
-            {
-                _tracker.RecordCall("CalculateSameTypeBonus");
-                return ReturnValue;
-            }
-        }
-
-        private class MockApplyComboScaling
-        {
-            private readonly BrickCallTracker _tracker;
-            public float ReturnValue { get; set; }
-            public (float Damage, float ComboMultiplier) LastCall { get; private set; }
-
-            public MockApplyComboScaling(BrickCallTracker tracker) => _tracker = tracker;
-
-            public float Execute(float damage, float comboMultiplier)
-            {
-                _tracker.RecordCall("ApplyComboScaling");
-                LastCall = (damage, comboMultiplier);
-                return ReturnValue;
-            }
-        }
-
-        private class MockRollCrit
-        {
-            private readonly BrickCallTracker _tracker;
-            public bool ReturnValue { get; set; }
-
-            public MockRollCrit(BrickCallTracker tracker) => _tracker = tracker;
-
-            public bool Execute(float attackerLck, float baseCrit, float lckScale, Random rng)
-            {
-                _tracker.RecordCall("RollCrit");
-                return ReturnValue;
-            }
+            var chart = new TypeChart();
+            chart.AddStrength(ElementalType.Blaze, ElementalType.Frost);
+            chart.AddStrength(ElementalType.Frost, ElementalType.Torrent);
+            chart.AddStrength(ElementalType.Torrent, ElementalType.Blaze);
+            return chart;
         }
     }
 
-    // Stub types that will be defined by Agents A & B
-    public class ResolveDamageRollParams
+    internal static class Assert
     {
-        public float AttackerStr { get; set; }
-        public float AttackerLck { get; set; }
-        public float DefenderDef { get; set; }
-        public float DefenderLck { get; set; }
-        public float ActionPower { get; set; }
-        public ElementalType AttackType { get; set; }
-        public ElementalType DefenderType { get; set; }
-        public DualType? DefenderDualType { get; set; }
-        public float ComboMultiplier { get; set; }
-        public bool HasSameTypeBonus { get; set; }
-    }
+        public static void AreEqual(int expected, int actual, string message)
+        {
+            if (expected != actual)
+            {
+                throw new Exception($"FAIL: {message} | Expected: {expected}, Actual: {actual}");
+            }
+        }
 
-    public class DamageResult
-    {
-        public int FinalDamage { get; set; }
-        public bool WasDodged { get; set; }
-        public bool WasCrit { get; set; }
-        public bool HadSameTypeBonus { get; set; }
-        public MatchupResult Matchup { get; set; }
-        public float TypeMultiplier { get; set; }
-        public float ComboMultiplier { get; set; }
-    }
+        public static void AreEqual(float expected, float actual, string message)
+        {
+            const float epsilon = 0.001f;
+            if (Math.Abs(expected - actual) > epsilon)
+            {
+                throw new Exception($"FAIL: {message} | Expected: {expected}, Actual: {actual}");
+            }
+        }
 
-    public class TypeMatchupResult
-    {
-        public float Damage { get; set; }
-        public MatchupResult Result { get; set; }
-        public float Multiplier { get; set; }
-    }
+        public static void AreEqual<T>(T expected, T actual, string message)
+        {
+            if (!Equals(expected, actual))
+            {
+                throw new Exception($"FAIL: {message} | Expected: {expected}, Actual: {actual}");
+            }
+        }
 
-    public class TunableConstants
-    {
-        public float BaseDodge { get; set; }
-        public float LckDodgeScale { get; set; }
-        public float BaseCrit { get; set; }
-        public float LckCritScale { get; set; }
-        public float CritMultiplier { get; set; }
-        public float SameTypeBonus { get; set; }
-        public float StrongMultiplier { get; set; }
-        public float WeakMultiplier { get; set; }
-        public float DoubleStrongMultiplier { get; set; }
-        public float DoubleWeakMultiplier { get; set; }
+        public static void IsTrue(bool condition, string message)
+        {
+            if (!condition)
+            {
+                throw new Exception($"FAIL: {message}");
+            }
+        }
+
+        public static void IsFalse(bool condition, string message)
+        {
+            if (condition)
+            {
+                throw new Exception($"FAIL: {message}");
+            }
+        }
     }
 }

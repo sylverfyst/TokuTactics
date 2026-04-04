@@ -88,6 +88,14 @@ namespace TokuTactics.Tests.Bricks.Combat
             }
         }
 
+        public static void AreEqual<T>(T expected, T actual, string message)
+        {
+            if (!Equals(expected, actual))
+            {
+                throw new Exception($"FAIL: {message} | Expected: {expected}, Actual: {actual}");
+            }
+        }
+
         public static void IsTrue(bool condition, string message)
         {
             if (!condition)

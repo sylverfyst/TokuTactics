@@ -53,7 +53,10 @@ namespace TokuTactics.Commands.Combat
                 p.DefenderType,
                 p.DefenderDualType,
                 typeChart,
-                constants);
+                constants.StrongMultiplier,
+                constants.WeakMultiplier,
+                constants.DoubleStrongMultiplier,
+                constants.DoubleWeakMultiplier);
 
             result.Matchup = matchup.Matchup;
             result.TypeMultiplier = matchup.Multiplier;
