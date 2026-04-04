@@ -1,351 +1,438 @@
-# BCO Pattern Validation Report
+# BCO Pattern Validation Report - Iteration 2
 
-**Date**: 2026-03-31
-**Validator**: Agent D
-**Target**: DamageCalculator → BCO Refactor
-
----
-
-## Summary
-
-- **Bricks Validated**: 6
-- **Commands Validated**: 1
-- **Test Suites Validated**: 7
-- **Overall Status**: ❌ **REJECTED**
-
-**Critical Issues**: 42 compilation errors prevent code from building. Multiple BCO pattern violations and implementation errors detected.
+**Date**: 2026-04-04
+**Validator**: Agent D (Ralph Loop)
+**Status**: ITERATION 2 RE-VALIDATION
 
 ---
 
-## Build Status
+## Ralph Loop Status: CONTINUE - Significant Issues Remain
 
-**Compilation Result**: ❌ FAILED (42 errors)
-
-The code does not compile and cannot be executed. Critical issues must be fixed before validation can be completed.
-
-### Major Compilation Errors
-
-1. **ResolveDamageRoll.cs line 56**: Incorrect argument count to `ApplyTypeMatchup.Execute()`
-   - Command passes `constants` as single parameter
-   - Brick expects 4 individual float parameters: `strongMultiplier, weakMultiplier, doubleStrongMultiplier, doubleWeakMultiplier`
-
-2. **ApplyTypeMatchupTests.cs**: Type mismatch across all tests (12+ errors)
-   - Tests pass `ElementalType` as second parameter
-   - Brick expects `DualType attackerDualType`
-
-3. **ApplyTypeMatchupTests.cs**: Field name mismatch
-   - Tests access `result.Result` property
-   - Brick returns struct with `Matchup` property (not `Result`)
-
-4. **ResolveDamageRollTests.cs**: Incorrect command signature
-   - Tests attempt to inject bricks as function parameters
-   - Actual command has no such injection mechanism (uses static brick calls directly)
+### Build Status
+- **Compilation**: ❌ FAIL
+- **Test Execution**: ❌ BLOCKED (cannot run, code doesn't compile)
+- **Error Count**: 42 compilation errors (unchanged from iteration 1)
 
 ---
 
-## Brick Validation
+## Changes Since Iteration 1
 
-### 1. CalculateBaseDamage
+### Agent A (Bricks) - Commit 1427089
+**Status**: ⚠️ PARTIAL FIX - Signature fixed, but implementation broken
 
-**Status**: ✅ PASS
+**Changes Made**:
+- Changed `ApplyTypeMatchup.Execute()` signature from 9 parameters to 6 parameters ✅
+- Changed attack type parameter from `DualType` to `ElementalType` ✅
+- Replaced 4 individual multiplier params with single `TunableConstants` object ✅
+- Updated XML documentation ✅
 
-- [x] **Test 1 - One Operation**: "Calculates base damage from attacker strength vs defender defense and action power" - clean single sentence
-- [x] **Test 2 - One Failure Mode**: Only direct dependents break (commands calling this brick)
-- [x] **Test 3 - One Reason to Change**: Only if damage formula changes
-- [x] **Test 4 - Self-Describing Signature**: `Execute(attackerStr, defenderDef, actionPower) → float` - fully self-describing
-- [x] **Test 5 - Independently Testable**: Zero mocks needed (pure math)
-- [x] Does NOT call other bricks
-- [x] Has XML doc comments
-- [x] In Index.cs
-- [ ] Has corresponding test file (**exists but contains compilation errors**)
+**NEW Critical Error Introduced**:
+```
+ApplyTypeMatchup.cs(52,45): error CS1503:
+Argument 1: cannot convert from 'TokuTactics.Core.Types.ElementalType' to 'TokuTactics.Core.Types.DualType'
+```
 
-**Naming**: Uses `Calculate*` verb (valid brick verb per BCO spec)
+**Root Cause**: Line 52 calls `typeChart.Resolve(attackType, defenderType)` where both parameters are `ElementalType`, but `TypeChart.Resolve()` requires signature `(DualType, ElementalType)`.
 
----
+**What Broke**: The fix changed the parameter from `DualType` to `ElementalType` but failed to update the internal logic to handle single-type vs dual-type attackers. The TypeChart API does not have a `Resolve(ElementalType, ElementalType)` overload.
 
-### 2. ApplyTypeMatchup
+**Available TypeChart Methods**:
+- `Resolve(DualType attacker, ElementalType defender)` - for dual-type attackers
+- `ResolveDefensive(ElementalType attacker, DualType defender)` - for dual-type defenders
+- **MISSING**: `Resolve(ElementalType, ElementalType)` - no such method exists
 
-**Status**: ⚠️ PARTIAL PASS (brick implementation correct, tests broken)
+**Impact**: The brick is now calling a non-existent method overload. This breaks the entire build.
 
-- [x] **Test 1 - One Operation**: "Applies type effectiveness multiplier to damage based on type chart matchup"
-- [x] **Test 2 - One Failure Mode**: Only direct dependents break
-- [x] **Test 3 - One Reason to Change**: Only if type matchup calculation rules change
-- [x] **Test 4 - Self-Describing Signature**: Clear parameters and return type
-- [x] **Test 5 - Independently Testable**: One mock (TypeChart)
-- [x] Does NOT call other bricks
-- [x] Has XML doc comments
-- [x] In Index.cs
-- [ ] Has corresponding test file (**exists but has type mismatches - tests expect `ElementalType`, brick expects `DualType`**)
+### Agent B (Command) - No Changes
+**Status**: ⏸️ NO ACTION TAKEN
 
-**Issues**:
-- Tests use wrong parameter type (`ElementalType` instead of `DualType`)
-- Tests access wrong field name (`result.Result` instead of `result.Matchup`)
+No commits detected from Agent B. The command code remains unchanged.
 
-**Naming**: Uses `Apply*` verb (valid brick verb per BCO spec)
+**Command Status**:
+- ResolveDamageRoll.cs line 50-56 correctly calls `ApplyTypeMatchup.Execute()` with 6 parameters (matching Agent A's new signature) ✅
+- However, this was already correct in iteration 1 - Agent A changed the brick to match the command
+- Command still has no brick injection for testability ❌
 
----
+### Agent C (Tests) - No Changes
+**Status**: ⏸️ NO ACTION TAKEN
 
-### 3. CalculateSameTypeBonus
+No commits detected from Agent C. Test code remains unchanged from iteration 1.
 
-**Status**: ✅ PASS
-
-- [x] **Test 1 - One Operation**: "Applies same-type attack bonus (STAB) multiplier to damage"
-- [x] **Test 2 - One Failure Mode**: Only direct dependents break
-- [x] **Test 3 - One Reason to Change**: Only if STAB bonus formula changes
-- [x] **Test 4 - Self-Describing Signature**: `Execute(damage, sameTypeBonus) → float` - perfectly clear
-- [x] **Test 5 - Independently Testable**: Zero mocks (pure math)
-- [x] Does NOT call other bricks
-- [x] Has XML doc comments
-- [x] In Index.cs
-- [x] Has corresponding test file (appears correct, would compile if other errors fixed)
-
-**Naming**: Uses `Calculate*` verb (valid brick verb per BCO spec)
+**Test Status**:
+- ApplyTypeMatchupTests still passes 9 arguments (expects old signature) ❌
+- ApplyTypeMatchupTests still accesses `.Result` property instead of `.Matchup` ❌
+- ResolveDamageRollTests still expects 10-parameter signature with brick injection ❌
+- ResolveDamageRollTests still uses undefined `Assert` helper ❌
+- ResolveDamageRollTests still accesses `.WasCrit` property instead of `.WasCritical` ❌
 
 ---
 
-### 4. ApplyComboScaling
+## Current Error Breakdown
 
-**Status**: ✅ PASS
+### Category 1: ApplyTypeMatchup Brick (1 error, BLOCKING ALL)
+**File**: `Scripts/Bricks/Combat/ApplyTypeMatchup.cs:52`
 
-- [x] **Test 1 - One Operation**: "Applies combo multiplier to damage for chained attacks"
-- [x] **Test 2 - One Failure Mode**: Only direct dependents break
-- [x] **Test 3 - One Reason to Change**: Only if combo scaling formula changes
-- [x] **Test 4 - Self-Describing Signature**: `Execute(damage, comboMultiplier) → float` - fully self-describing
-- [x] **Test 5 - Independently Testable**: Zero mocks (pure math)
-- [x] Does NOT call other bricks
-- [x] Has XML doc comments
-- [x] In Index.cs
-- [x] Has corresponding test file (appears correct, would compile if other errors fixed)
+```csharp
+// Line 52 - BROKEN CODE:
+matchup = typeChart.Resolve(attackType, defenderType);
+//                          ^^^^^^^^^^  ^^^^^^^^^^^^
+//                          ElementalType  ElementalType
+//
+// ERROR: TypeChart.Resolve expects (DualType, ElementalType)
+// but receives (ElementalType, ElementalType)
+```
 
-**Naming**: Uses `Apply*` verb (valid brick verb per BCO spec)
+**Error**: `error CS1503: Argument 1: cannot convert from 'ElementalType' to 'DualType'`
+
+**Why This Blocks Everything**: This brick is used by the command, which is used by all systems. Until this compiles, nothing else can be validated.
+
+### Category 2: ApplyTypeMatchupTests (12 errors)
+**File**: `Tests/Bricks/Combat/ApplyTypeMatchupTests.cs`
+
+**Error Type 1** (6 occurrences): Wrong parameter count
+```csharp
+// Tests still expect old 9-parameter signature:
+ApplyTypeMatchup.Execute(
+    100f,                      // baseDamage ✅
+    ElementalType.Blaze,       // attackType (WRONG: test passes this but brick now expects DualType... wait no, brick expects ElementalType now)
+    ElementalType.Frost,       // defenderType ✅
+    null,                      // defenderDualType ✅
+    typeChart,                 // typeChart ✅
+    2.0f,                      // strongMultiplier (REMOVED: brick now uses constants)
+    0.5f,                      // weakMultiplier (REMOVED)
+    2.5f,                      // doubleStrongMultiplier (REMOVED)
+    0.25f);                    // doubleWeakMultiplier (REMOVED)
+```
+
+**Error**: `error CS1501: No overload for method 'Execute' takes 9 arguments`
+
+**Fix Required**: Remove last 4 float parameters, add `TunableConstants` parameter
+
+**Error Type 2** (6 occurrences): Wrong property name
+```csharp
+// Tests access wrong property:
+Assert.AreEqual(MatchupResult.Strong, result.Result);
+//                                            ^^^^^^ WRONG
+
+// Brick returns:
+public struct Result {
+    public float Damage;
+    public MatchupResult Matchup;  // ← Correct property name
+    public float Multiplier;
+}
+```
+
+**Error**: `error CS1061: 'ApplyTypeMatchup.Result' does not contain a definition for 'Result'`
+
+**Fix Required**: Change `result.Result` to `result.Matchup`
+
+### Category 3: ResolveDamageRollTests (29 errors)
+**File**: `Tests/Commands/Combat/ResolveDamageRollTests.cs`
+
+**Error Type 1** (4 occurrences): Wrong parameter count
+```csharp
+// Tests expect brick injection:
+var result = ResolveDamageRoll.Execute(
+    p, typeChart, rng, constants,
+    mockRollDodge,        // ← These 6 parameters don't exist
+    mockCalculateBase,
+    mockApplyMatchup,
+    mockCalcSTAB,
+    mockApplyCombo,
+    mockRollCrit);
+
+// Actual signature:
+public static DamageResult Execute(
+    ResolveDamageRollParams p,
+    TypeChart typeChart,
+    Random rng,
+    TunableConstants constants)  // ← Only 4 parameters
+```
+
+**Error**: `error CS1501: No overload for method 'Execute' takes 10 arguments`
+
+**Fix Required**: Either (A) remove brick injection from tests, or (B) add optional brick function parameters to command
+
+**Error Type 2** (24 occurrences): Undefined Assert helper
+```csharp
+Assert.AreEqual(expected, actual);
+// ^^^^^^ ERROR: 'Assert' does not exist in the current context
+```
+
+**Error**: `error CS0103: The name 'Assert' does not exist in the current context`
+
+**Fix Required**: Agent C needs to define the `Assert` helper class (simple throw-on-mismatch)
+
+**Error Type 3** (1 occurrence): Wrong property name
+```csharp
+Assert.IsTrue(result.WasCrit);
+//                   ^^^^^^^ WRONG
+
+// DamageResult has:
+public bool WasCritical;  // ← Correct property name
+```
+
+**Error**: `error CS1061: 'DamageResult' does not contain a definition for 'WasCrit'`
+
+**Fix Required**: Change `WasCrit` to `WasCritical`
 
 ---
 
-### 5. RollCrit
+## BCO Compliance Re-Validation
 
-**Status**: ✅ PASS
+### Brick Checklist (6 bricks)
 
-- [x] **Test 1 - One Operation**: "Determines if an attack is a critical hit based on attacker luck stat"
-- [x] **Test 2 - One Failure Mode**: Only direct dependents break
-- [x] **Test 3 - One Reason to Change**: Only if crit chance formula changes
-- [x] **Test 4 - Self-Describing Signature**: `Execute(attackerLck, baseCritChance, lckCritScale, rng) → bool` - clear intent
-- [x] **Test 5 - Independently Testable**: One mock (Random RNG)
-- [x] Does NOT call other bricks
-- [x] Has XML doc comments
-- [x] In Index.cs
-- [x] Has corresponding test file (appears correct, would compile if other errors fixed)
+| Brick | Test 1 | Test 2 | Test 3 | Test 4 | Test 5 | Status |
+|-------|--------|--------|--------|--------|--------|--------|
+| CalculateBaseDamage | ✅ | ✅ | ✅ | ✅ | ✅ | PASS |
+| ApplyTypeMatchup | ✅ | ✅ | ✅ | ⚠️ | ❌ | **FAIL** |
+| CalculateSameTypeBonus | ✅ | ✅ | ✅ | ✅ | ✅ | PASS |
+| ApplyComboScaling | ✅ | ✅ | ✅ | ✅ | ✅ | PASS |
+| RollCrit | ✅ | ✅ | ✅ | ✅ | ✅ | PASS |
+| RollDodge | ✅ | ✅ | ✅ | ✅ | ✅ | PASS |
 
-**Naming**: Uses `Roll*` verb (valid brick verb per BCO spec)
+**ApplyTypeMatchup Failures**:
+- ⚠️ **Test 4 - Self-Describing Signature**: Signature is now correct (accepts `TunableConstants`), but implementation is broken
+- ❌ **Test 5 - Independently Testable**: Brick calls non-existent `TypeChart.Resolve(ElementalType, ElementalType)` method, making it impossible to test or even compile
 
----
+**Critical Issue**: The signature fix was correct in intent but broke the implementation. The brick must handle three cases:
+1. Single-type attacker → Single-type defender (enemy vs enemy) - **BROKEN, no TypeChart method exists**
+2. Single-type attacker → Dual-type defender (enemy vs Ranger) - ✅ works via `ResolveDefensive()`
+3. Dual-type attacker → Single-type defender (Ranger vs enemy) - **BROKEN, can't accept DualType anymore**
 
-### 6. RollDodge
+**Diagnosis**: The game needs to support all three cases, but:
+- The current signature `ElementalType attackType` can't represent dual-type Rangers attacking
+- The TypeChart API doesn't support single-type vs single-type lookups
+- This is a **fundamental architecture mismatch**
 
-**Status**: ✅ PASS
+**Recommended Fix**:
+- Keep brick signature with `ElementalType attackType` for most calls
+- Add logic to construct a temporary `DualType` when needed, OR
+- Modify TypeChart to add `Resolve(ElementalType, ElementalType)` overload
 
-- [x] **Test 1 - One Operation**: "Determines if an attack is dodged based on defender luck stat"
-- [x] **Test 2 - One Failure Mode**: Only direct dependents break
-- [x] **Test 3 - One Reason to Change**: Only if dodge chance formula changes
-- [x] **Test 4 - Self-Describing Signature**: `Execute(defenderLck, baseDodgeChance, lckDodgeScale, rng) → bool` - clear intent
-- [x] **Test 5 - Independently Testable**: One mock (Random RNG)
-- [x] Does NOT call other bricks
-- [x] Has XML doc comments
-- [x] In Index.cs
-- [x] Has corresponding test file (correct, includes DeterministicRandom mock)
+### Command Checklist
 
-**Naming**: Uses `Roll*` verb (valid brick verb per BCO spec)
+| Test | Status | Notes |
+|------|--------|-------|
+| One Intention | ✅ | Resolves complete damage roll (single intention) |
+| No State | ✅ | Pure orchestration, no instance state |
+| Dependencies Injected | ✅ | TypeChart, Random, TunableConstants injected |
+| **Testable with Mock Bricks** | ❌ | **FAIL** - still uses direct static brick calls |
 
----
+**ResolveDamageRoll Status**: ⚠️ UNCHANGED
 
-## Command Validation
+The command wasn't modified in iteration 1. It still fails BCO Test 4 (testability).
 
-### ResolveDamageRoll
+**Current Architecture**:
+```csharp
+// Inside ResolveDamageRoll.Execute():
+if (RollDodge.Execute(...)) { ... }           // Direct static call
+float baseDamage = CalculateBaseDamage.Execute(...);  // Direct static call
+var matchup = ApplyTypeMatchup.Execute(...);  // Direct static call
+```
 
-**Status**: ❌ FAIL
+**BCO Violation**: Cannot inject mock bricks for testing the command's orchestration logic.
 
-- [x] **Test 1 - One Intention**: "Resolves a complete damage roll for one attack" - clean single intention
-- [x] **Test 2 - No State**: No instance variables, no mutable state (pure orchestration)
-- [x] **Test 3 - Dependencies Injected**: TypeChart, Random, TunableConstants passed as parameters ✅
-- [ ] **Test 4 - Testable with Mock Bricks**: ❌ **FAILS** - Command uses direct static brick calls, cannot be mocked as currently implemented
-- [x] Has co-located contract file (ResolveDamageRollParams.cs)
-- [x] In Index.cs (documented in comments)
-- [ ] Has corresponding test file (**exists but assumes different signature with brick injection**)
+**Agent C's Tests Assume**: Brick injection via optional function parameters (which don't exist)
 
-**Critical Issues**:
+**Decision Required**:
+- **Option A**: Agent B adds optional brick function parameters (more testable, matches BCO Test 4)
+- **Option B**: Agent C rewrites tests to use real bricks (simpler, but less isolated unit testing)
 
-1. **Line 56 compilation error**: Passes `constants` to `ApplyTypeMatchup.Execute()` but brick expects 4 individual float parameters
-   ```csharp
-   // WRONG (current code):
-   var matchup = ApplyTypeMatchup.Execute(
-       baseDamage, p.AttackType, p.DefenderType, p.DefenderDualType,
-       typeChart, constants); // ← ERROR: missing 3 parameters
+### Test Checklist
 
-   // CORRECT (should be):
-   var matchup = ApplyTypeMatchup.Execute(
-       baseDamage, p.AttackType, p.DefenderType, p.DefenderDualType,
-       typeChart,
-       constants.StrongMultiplier,
-       constants.WeakMultiplier,
-       constants.DoubleStrongMultiplier,
-       constants.DoubleWeakMultiplier);
-   ```
-
-2. **Testability violation**: Tests expect brick functions to be injectable:
-   ```csharp
-   // Test expects this signature:
-   ResolveDamageRoll.Execute(params, typeChart, rng, constants,
-       mockRollDodge, mockCalculateBase, ...) // ← These parameters don't exist
-
-   // Actual signature:
-   ResolveDamageRoll.Execute(params, typeChart, rng, constants)
-   ```
-
-   The command cannot be tested with mock bricks because bricks are called via static methods, not injected dependencies.
-
-**Naming**: Uses `Resolve*` verb (valid command verb per BCO spec)
-
----
-
-## Test Coverage Validation
-
-- [x] All 6 bricks have test files
-- [x] Command has test file
-- [ ] ❌ Tests are runnable: **NO - 42 compilation errors**
-- [ ] ❌ Tests are comprehensive: **CANNOT VERIFY** - code doesn't build
-
-**Test Files Created**:
-1. CalculateBaseDamageTests.cs ✅
-2. ApplyTypeMatchupTests.cs ⚠️ (type mismatches)
-3. CalculateSameTypeBonusTests.cs ✅
-4. ApplyComboScalingTests.cs ✅
-5. RollCritTests.cs ✅
-6. RollDodgeTests.cs ✅
-7. ResolveDamageRollTests.cs ❌ (signature mismatch)
+| Test Suite | Compiles | Runs | Passes | Notes |
+|------------|----------|------|--------|-------|
+| CalculateBaseDamageTests | ✅ | ⏸️ | ⏸️ | Would work if other errors fixed |
+| ApplyTypeMatchupTests | ❌ | ❌ | ❌ | 12 errors (signature + property) |
+| CalculateSameTypeBonusTests | ✅ | ⏸️ | ⏸️ | Would work if other errors fixed |
+| ApplyComboScalingTests | ✅ | ⏸️ | ⏸️ | Would work if other errors fixed |
+| RollCritTests | ✅ | ⏸️ | ⏸️ | Would work if other errors fixed |
+| RollDodgeTests | ✅ | ⏸️ | ⏸️ | Has mock RNG, looks correct |
+| ResolveDamageRollTests | ❌ | ❌ | ❌ | 29 errors (signature + Assert + property) |
 
 ---
 
 ## Prohibited Patterns Check
 
-### ✅ Passed Checks:
-- [x] No brick calls another brick (verified via grep)
-- [x] No state in commands (ResolveDamageRoll is stateless)
-- [x] Direct imports only through namespaces (using statements correct)
+### ✅ Still Passing:
+- No brick calls another brick (verified)
+- No state in commands (ResolveDamageRoll is stateless)
+- Direct imports via namespaces only
 
-### ⚠️ Naming Checks:
-- [x] All bricks use valid brick verbs: `Calculate*`, `Apply*`, `Roll*`
-- [x] Command uses valid command verb: `Resolve*`
-
-### Issues Found:
-- Parameter contract follows BCO pattern (ResolveDamageRollParams is co-located) ✅
-- TunableConstants is co-located with command ✅
+### ⚠️ New Issue:
+- **ApplyTypeMatchup now imports Commands namespace**: `using TokuTactics.Commands.Combat;`
+  - This is to access `TunableConstants`
+  - **Potential violation**: Bricks should not depend on Commands layer
+  - **Recommendation**: Move `TunableConstants` to `Core/` or `Bricks/` namespace
 
 ---
 
-## Additional Observations
+## Root Cause Analysis - Iteration 1 Outcome
 
-### Good Practices Observed:
-1. **Excellent brick atomicity**: Each brick truly does one thing
-2. **Good naming**: All verbs follow BCO conventions precisely
-3. **XML documentation**: Comprehensive doc comments on all units
-4. **Test structure**: Tests follow consistent pattern (Arrange/Act/Assert)
-5. **Contract files**: Proper use of frozen parameter contracts
+### What Went Wrong:
 
-### Critical Architecture Violations:
+1. **Agent A made partial fix**: Changed signature correctly but broke implementation
+   - Fixed parameter count mismatch ✅
+   - Fixed type mismatch for command usage ✅
+   - **Failed to update internal logic** ❌
+   - Introduced new error: calls non-existent `TypeChart.Resolve(ElementalType, ElementalType)`
 
-**Brick signature mismatch between Agent A and Agent B**:
-- Agent A created `ApplyTypeMatchup` expecting `DualType attackerDualType`
-- Agent B's command passes `p.AttackType` (an `ElementalType`)
-- This suggests coordination failure between agents
+2. **Agent B took no action**: Assumed Agent A would fix everything
+   - Command was already calling ApplyTypeMatchup correctly
+   - No brick injection added for testability
 
-**Test implementation mismatch**:
-- Agent C created tests assuming dependency injection of bricks
-- Agent B implemented command with static brick calls
-- These approaches are incompatible
+3. **Agent C took no action**: Assumed Agent A and B would fix their code first
+   - Tests still use iteration 0 signatures
+   - Tests still expect brick injection that doesn't exist
 
----
+### Coordination Failure:
 
-## Root Cause Analysis
-
-The failures stem from **lack of coordination between agents**:
-
-1. **Agent A** built bricks in isolation (mostly correct)
-2. **Agent B** built command without verifying brick signatures (compilation error)
-3. **Agent C** built tests assuming a different command architecture (dependency injection)
-
-**BCO Pattern Compliance**: The brick *design* largely follows BCO rules, but the *integration* between layers is broken.
+**The Ralph Loop depends on all agents acting in parallel**. In iteration 1:
+- Only 1 of 3 agents took action
+- That agent's fix was incomplete
+- No inter-agent verification occurred
 
 ---
 
-## Recommendations
+## Remaining Issues for Iteration 2
 
 ### Must Fix (Blocking):
 
-1. **Fix ResolveDamageRoll.cs line 56**:
-   - Replace `constants` with individual parameters: `constants.StrongMultiplier, constants.WeakMultiplier, constants.DoubleStrongMultiplier, constants.DoubleWeakMultiplier`
+1. **ApplyTypeMatchup.cs line 52** - CRITICAL, BLOCKS ALL BUILDS
+   ```csharp
+   // CURRENT (BROKEN):
+   matchup = typeChart.Resolve(attackType, defenderType);
 
-2. **Fix ApplyTypeMatchup brick signature OR command usage**:
-   - **Option A**: Change brick to accept `ElementalType` instead of `DualType`
-   - **Option B**: Change command to convert `ElementalType` to `DualType` before calling brick
-   - **Recommendation**: Option A - the brick should match the game's actual usage
+   // OPTION A - Add helper method to wrap single ElementalType in DualType:
+   var attackerDual = new DualType(attackType, attackType); // Same type in both slots
+   matchup = typeChart.Resolve(attackerDual, defenderType);
 
-3. **Fix all ApplyTypeMatchupTests**:
-   - Change test parameter types from `ElementalType` to `DualType` (or update brick per recommendation above)
-   - Change all `result.Result` to `result.Matchup`
+   // OPTION B - Add TypeChart.Resolve(ElementalType, ElementalType) overload in Core layer
+   // (More invasive, requires modifying TypeChart)
+   ```
 
-4. **Rebuild ResolveDamageRollTests OR modify command**:
-   - **Option A**: Remove dependency injection tests, test command as-is with real bricks
-   - **Option B**: Refactor command to accept brick functions as optional parameters
-   - **Recommendation**: Option A for simplicity, but Option B is more aligned with BCO Test 4
+2. **ApplyTypeMatchupTests** - Update all 6 tests (24 lines):
+   - Remove 4 multiplier parameters, add `TunableConstants` parameter
+   - Change `result.Result` to `result.Matchup`
+
+3. **ResolveDamageRollTests** - Rewrite tests:
+   - **If Agent B adds brick injection**: Update test signatures to match
+   - **If Agent B refuses brick injection**: Remove mock brick calls, test with real bricks
+   - Define `Assert` helper class (simple equality checker that throws on mismatch)
+   - Change `WasCrit` to `WasCritical`
 
 ### Should Fix (BCO Compliance):
 
-5. **Make ResolveDamageRoll testable with mock bricks**:
-   - Current implementation violates BCO Command Test 4
-   - Consider adding optional brick function parameters with defaults to static brick calls
-   - This allows tests to inject mocks while production code uses real bricks
+4. **ResolveDamageRoll testability** - Command Test 4 violation:
+   - Add optional brick function parameters for testability
+   - Example signature:
+   ```csharp
+   public static DamageResult Execute(
+       ResolveDamageRollParams p,
+       TypeChart typeChart,
+       Random rng,
+       TunableConstants constants,
+       Func<int, float, float, Random, bool>? rollDodge = null,
+       Func<int, int, int, float>? calculateBaseDamage = null,
+       ...)
+   {
+       rollDodge ??= (lck, base, scale, r) => RollDodge.Execute(lck, base, scale, r);
+       // Use injected function or default to real brick
+   ```
+
+5. **Move TunableConstants** - Architectural layering violation:
+   - Move `TunableConstants` from `Commands.Combat` to `Core.Combat` or `Bricks.Combat`
+   - Remove `using TokuTactics.Commands.Combat;` from ApplyTypeMatchup.cs
+   - Update all references
 
 ### Nice to Have:
 
-6. **Add TestRunner integration**: Ensure new test suites are registered in TestRunner.cs
-7. **Verify brick verb consistency**: Confirm `Roll*` vs `Calculate*` verb usage matches semantic intent
+6. **TestRunner integration**: Verify new test suites are registered and called
+7. **Add integration test**: Test full ResolveDamageRoll with real bricks to verify orchestration
 
 ---
 
-## Approval Decision
+## Decision: CONTINUE LOOP
 
-### ❌ **REJECTED** - Critical violations must be fixed before merge
+### ❌ Ralph Loop Iteration 2: FAILED
 
-**Blocking Issues**:
-- 42 compilation errors
-- Code does not build
-- Tests cannot run
-- Command violates BCO testability requirement
+**Criteria**:
+- ✅ Build succeeds: **NO (42 errors, same as iteration 1)**
+- ✅ Tests pass: **NO (cannot run, code doesn't compile)**
+- ✅ BCO compliance: **NO (brick broken, command not testable)**
+- ✅ No prohibited patterns: **⚠️ (brick imports command namespace)**
 
-**Approval Criteria**:
-1. ✅ All code compiles with zero errors
-2. ✅ All tests run and pass
-3. ✅ Command is testable with mock bricks (BCO Command Test 4)
-4. ✅ No prohibited patterns present
+**Status**: **0 of 4 criteria met** (unchanged from iteration 1)
 
-**Current Status**: 1 of 4 criteria met
+### Why Iteration 1 Failed:
 
----
+1. **Incomplete fix**: Agent A fixed signature but broke implementation
+2. **No coordination**: Agents B and C didn't act, assumed A would fix everything
+3. **No verification**: Agent A didn't build/test before committing
 
-## Next Steps for Agents A, B, C
+### Specific Actions Required for Iteration 2:
 
-1. **Agent B** must fix ResolveDamageRoll.cs compilation error immediately
-2. **Agent A** and **Agent C** must align on ApplyTypeMatchup signature (ElementalType vs DualType)
-3. **Agent C** must fix test compilation errors
-4. **Agent B** should refactor command for testability OR **Agent C** should rewrite tests to match current architecture
-5. All agents should verify their work compiles before committing
+**Agent A (Bricks)**:
+- [ ] Fix ApplyTypeMatchup.cs line 52 to handle ElementalType × ElementalType case
+- [ ] Test with: `dotnet build TestRunner.csproj` (must show <42 errors)
+- [ ] Verify brick works in isolation (write quick test if needed)
 
-Once these issues are resolved, re-run validation with:
+**Agent B (Command)**:
+- [ ] Decide on testability approach (brick injection vs integration tests)
+- [ ] If adding injection: Implement optional brick function parameters
+- [ ] Coordinate with Agent C on expected test signature
+
+**Agent C (Tests)**:
+- [ ] Fix ApplyTypeMatchupTests (update to 6-param signature, fix property access)
+- [ ] Define `Assert` helper class
+- [ ] Fix ResolveDamageRollTests based on Agent B's decision:
+  - If injection added: Update signatures to match
+  - If no injection: Rewrite as integration tests with real bricks
+- [ ] Test with: `dotnet build TestRunner.csproj` (must show 0 errors)
+
+### Success Criteria for Iteration 2:
+
+When all agents complete their fixes:
 ```bash
 cd /Users/bmetzger/code/TokuTactics/.worktrees/review-bco
 dotnet build TestRunner.csproj
+# Must show: Build succeeded. 0 Error(s)
+
 dotnet run --project TestRunner.csproj
+# Must show: All tests pass
 ```
+
+Then Agent D will re-validate and approve if:
+- ✅ Build succeeds (0 errors)
+- ✅ All tests pass
+- ✅ All 6 bricks pass BCO design tests
+- ✅ Command passes BCO design tests (including testability)
+- ✅ No prohibited patterns
 
 ---
 
-**Validator Notes**: The brick design quality is quite good - atomicity, naming, and documentation are excellent. The failures are primarily integration errors (signature mismatches) and architectural misalignment (testability). These are fixable without redesigning the bricks themselves.
+## Validator Notes
+
+**Iteration 1 Attempt Was**: Partially correct direction, but incomplete execution.
+
+**Agent A's Fix Quality**:
+- ✅ Correctly identified the signature mismatch
+- ✅ Correctly changed to `TunableConstants`
+- ✅ Correctly changed to `ElementalType`
+- ❌ Failed to update internal implementation to match
+- ❌ Introduced new compilation error
+- ❌ Did not verify the fix compiled before committing
+
+**Lesson for Ralph Loop**: All agents must act, and each must verify their changes compile before committing. Agent D cannot validate a broken build.
+
+**Recommended Fix Priority**:
+1. Agent A: Fix line 52 (unblocks everything else)
+2. Agent C: Fix test signatures and helpers
+3. Agent B: Add testability or coordinate with C on integration test approach
+
+**Time to Resolution**: If all agents act in iteration 2, this should reach approval state. The remaining issues are well-defined and mechanical.
+
+---
+
+**End of Iteration 2 Validation Report**
