@@ -14,7 +14,7 @@ namespace TokuTactics.Commands.Combat
         public float DefenderDef { get; init; }
         public float DefenderLck { get; init; }
         public float ActionPower { get; init; }
-        public DualType AttackType { get; init; }
+        public ElementalType AttackType { get; init; }
         public ElementalType DefenderType { get; init; }
         public DualType? DefenderDualType { get; init; }
         public float ComboMultiplier { get; init; }
