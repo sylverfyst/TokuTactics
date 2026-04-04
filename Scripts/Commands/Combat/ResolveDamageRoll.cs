@@ -62,6 +62,7 @@ namespace TokuTactics.Commands.Combat
             result.BaseDamage = baseDamage;
 
             // Brick 3: Apply type matchup
+            // Extract primary type from attacker's dual type (form type for Rangers, single type for enemies)
             var matchup = applyTypeMatchup(
                 baseDamage,
                 p.AttackType,

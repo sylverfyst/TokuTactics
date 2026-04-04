@@ -1,5 +1,6 @@
 using System;
 using TokuTactics.Bricks.Combat;
+using TokuTactics.Commands.Combat;
 using TokuTactics.Core.Types;
 
 namespace TokuTactics.Tests.Bricks.Combat
@@ -35,15 +36,15 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
+            ElementalType attackType = ElementalType.Blaze;
             ElementalType defenderType = ElementalType.Frost;
             DualType? defenderDualType = null; // Single-type defender
-            float strongMultiplier = 1.5f;
+            var constants = new TunableConstants();
 
             // Act
             var result = ApplyTypeMatchup.Execute(
                 baseDamage, attackType, defenderType, defenderDualType,
-                chart, strongMultiplier, 0.5f, 2.0f, 0.25f);
+                chart, constants);
 
             // Assert
             Assert.AreEqual(150f, result.Damage, "Blaze vs Frost should be 1.5x (strong)");
@@ -56,15 +57,15 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
+            ElementalType attackType = ElementalType.Blaze;
             ElementalType defenderType = ElementalType.Torrent;
             DualType? defenderDualType = null;
-            float weakMultiplier = 0.5f;
+            var constants = new TunableConstants();
 
             // Act
             var result = ApplyTypeMatchup.Execute(
                 baseDamage, attackType, defenderType, defenderDualType,
-                chart, 1.5f, weakMultiplier, 2.0f, 0.25f);
+                chart, constants);
 
             // Assert
             Assert.AreEqual(50f, result.Damage, "Blaze vs Torrent should be 0.5x (weak)");
@@ -77,14 +78,15 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            DualType attackType = new DualType(ElementalType.Shadow, ElementalType.Shadow); // Not in chart
+            ElementalType attackType = ElementalType.Shadow; // Not in chart
             ElementalType defenderType = ElementalType.Radiant; // Not in chart
             DualType? defenderDualType = null;
+            var constants = new TunableConstants();
 
             // Act
             var result = ApplyTypeMatchup.Execute(
                 baseDamage, attackType, defenderType, defenderDualType,
-                chart, 1.5f, 0.5f, 2.0f, 0.25f);
+                chart, constants);
 
             // Assert
             Assert.AreEqual(100f, result.Damage, "Shadow vs Radiant should be 1.0x (neutral)");
@@ -97,15 +99,16 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
+            ElementalType attackType = ElementalType.Blaze;
             ElementalType defenderType = ElementalType.Normal; // Not used when dual type present
             DualType? defenderDualType = new DualType(ElementalType.Frost, ElementalType.Torrent);
             // Blaze is strong vs Frost (+1), weak vs Torrent (-1) = Neutral (0)
+            var constants = new TunableConstants();
 
             // Act
             var result = ApplyTypeMatchup.Execute(
                 baseDamage, attackType, defenderType, defenderDualType,
-                chart, 1.5f, 0.5f, 2.0f, 0.25f);
+                chart, constants);
 
             // Assert
             Assert.AreEqual(100f, result.Damage, "Blaze vs Frost/Torrent should cancel to neutral");
@@ -117,16 +120,16 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
+            ElementalType attackType = ElementalType.Blaze;
             ElementalType defenderType = ElementalType.Normal; // Not used
             // Both Frost types, Blaze is strong against both
             DualType? defenderDualType = new DualType(ElementalType.Frost, ElementalType.Frost);
-            float doubleStrongMultiplier = 2.0f;
+            var constants = new TunableConstants();
 
             // Act
             var result = ApplyTypeMatchup.Execute(
                 baseDamage, attackType, defenderType, defenderDualType,
-                chart, 1.5f, 0.5f, doubleStrongMultiplier, 0.25f);
+                chart, constants);
 
             // Assert
             Assert.AreEqual(200f, result.Damage, "Blaze vs Frost/Frost should be 2.0x (double strong)");
@@ -139,16 +142,16 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
+            ElementalType attackType = ElementalType.Blaze;
             ElementalType defenderType = ElementalType.Normal; // Not used
             // Both Torrent types, Blaze is weak against both
             DualType? defenderDualType = new DualType(ElementalType.Torrent, ElementalType.Torrent);
-            float doubleWeakMultiplier = 0.25f;
+            var constants = new TunableConstants();
 
             // Act
             var result = ApplyTypeMatchup.Execute(
                 baseDamage, attackType, defenderType, defenderDualType,
-                chart, 1.5f, 0.5f, 2.0f, doubleWeakMultiplier);
+                chart, constants);
 
             // Assert
             Assert.AreEqual(25f, result.Damage, "Blaze vs Torrent/Torrent should be 0.25x (double weak)");
