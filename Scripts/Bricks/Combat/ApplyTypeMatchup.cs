@@ -49,8 +49,8 @@ namespace TokuTactics.Bricks.Combat
             else
             {
                 // Attacker (single type) → Enemy (single type)
-                // Wrap single type in DualType for TypeChart.Resolve
-                var attackerDual = new DualType(attackType, attackType);
+                // Wrap single ElementalType in DualType for TypeChart.Resolve() compatibility
+                var attackerDual = DualType.Single(attackType);
                 matchup = typeChart.Resolve(attackerDual, defenderType);
             }
 
