@@ -1,0 +1,27 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Scripts/Commands/Combat/ResolveDamageRoll.cs(45,13): error CS0019: Operator '??=' cannot be applied to operands of type 'Func<float, DualType, ElementalType, DualType?, TypeChart, float, float, float, float, ApplyTypeMatchup.Result>' and 'method group' [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Scripts/Commands/Combat/ResolveDamageRoll.cs(67,19): error CS1061: 'ResolveDamageRollParams' does not contain a definition for 'AttackerDualType' and no accessible extension method 'AttackerDualType' accepting a first argument of type 'ResolveDamageRollParams' could be found (are you missing a using directive or an assembly reference?) [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Scripts/Bricks/Combat/ApplyTypeMatchup.cs(52,45): error CS1503: Argument 1: cannot convert from 'TokuTactics.Core.Types.ElementalType' to 'TokuTactics.Core.Types.DualType' [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(44,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(65,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(85,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(106,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(127,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(149,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+
+Build FAILED.
+
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Scripts/Commands/Combat/ResolveDamageRoll.cs(45,13): error CS0019: Operator '??=' cannot be applied to operands of type 'Func<float, DualType, ElementalType, DualType?, TypeChart, float, float, float, float, ApplyTypeMatchup.Result>' and 'method group' [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Scripts/Commands/Combat/ResolveDamageRoll.cs(67,19): error CS1061: 'ResolveDamageRollParams' does not contain a definition for 'AttackerDualType' and no accessible extension method 'AttackerDualType' accepting a first argument of type 'ResolveDamageRollParams' could be found (are you missing a using directive or an assembly reference?) [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Scripts/Bricks/Combat/ApplyTypeMatchup.cs(52,45): error CS1503: Argument 1: cannot convert from 'TokuTactics.Core.Types.ElementalType' to 'TokuTactics.Core.Types.DualType' [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(44,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(65,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(85,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(106,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(127,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/Tests/Bricks/Combat/ApplyTypeMatchupTests.cs(149,43): error CS1501: No overload for method 'Execute' takes 9 arguments [/Users/bmetzger/code/TokuTactics/.worktrees/review-bco/TestRunner.csproj]
+    0 Warning(s)
+    9 Error(s)
+
+Time Elapsed 00:00:00.64
