@@ -35,7 +35,7 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            ElementalType attackType = ElementalType.Blaze;
+            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
             ElementalType defenderType = ElementalType.Frost;
             DualType? defenderDualType = null; // Single-type defender
             float strongMultiplier = 1.5f;
@@ -47,7 +47,7 @@ namespace TokuTactics.Tests.Bricks.Combat
 
             // Assert
             Assert.AreEqual(150f, result.Damage, "Blaze vs Frost should be 1.5x (strong)");
-            Assert.AreEqual(MatchupResult.Strong, result.Result, "Matchup should be Strong");
+            Assert.AreEqual(MatchupResult.Strong, result.Matchup, "Matchup should be Strong");
             Assert.AreEqual(1.5f, result.Multiplier, "Multiplier should be 1.5");
         }
 
@@ -56,7 +56,7 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            ElementalType attackType = ElementalType.Blaze;
+            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
             ElementalType defenderType = ElementalType.Torrent;
             DualType? defenderDualType = null;
             float weakMultiplier = 0.5f;
@@ -68,7 +68,7 @@ namespace TokuTactics.Tests.Bricks.Combat
 
             // Assert
             Assert.AreEqual(50f, result.Damage, "Blaze vs Torrent should be 0.5x (weak)");
-            Assert.AreEqual(MatchupResult.Weak, result.Result, "Matchup should be Weak");
+            Assert.AreEqual(MatchupResult.Weak, result.Matchup, "Matchup should be Weak");
             Assert.AreEqual(0.5f, result.Multiplier, "Multiplier should be 0.5");
         }
 
@@ -77,7 +77,7 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            ElementalType attackType = ElementalType.Shadow; // Not in chart
+            DualType attackType = new DualType(ElementalType.Shadow, ElementalType.Shadow); // Not in chart
             ElementalType defenderType = ElementalType.Radiant; // Not in chart
             DualType? defenderDualType = null;
 
@@ -88,7 +88,7 @@ namespace TokuTactics.Tests.Bricks.Combat
 
             // Assert
             Assert.AreEqual(100f, result.Damage, "Shadow vs Radiant should be 1.0x (neutral)");
-            Assert.AreEqual(MatchupResult.Neutral, result.Result, "Matchup should be Neutral");
+            Assert.AreEqual(MatchupResult.Neutral, result.Matchup, "Matchup should be Neutral");
             Assert.AreEqual(1.0f, result.Multiplier, "Multiplier should be 1.0");
         }
 
@@ -97,7 +97,7 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            ElementalType attackType = ElementalType.Blaze;
+            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
             ElementalType defenderType = ElementalType.Normal; // Not used when dual type present
             DualType? defenderDualType = new DualType(ElementalType.Frost, ElementalType.Torrent);
             // Blaze is strong vs Frost (+1), weak vs Torrent (-1) = Neutral (0)
@@ -109,7 +109,7 @@ namespace TokuTactics.Tests.Bricks.Combat
 
             // Assert
             Assert.AreEqual(100f, result.Damage, "Blaze vs Frost/Torrent should cancel to neutral");
-            Assert.AreEqual(MatchupResult.Neutral, result.Result, "Matchup should be Neutral");
+            Assert.AreEqual(MatchupResult.Neutral, result.Matchup, "Matchup should be Neutral");
         }
 
         private static void Test_DoubleStrongMatchup_HighestMultiplier()
@@ -117,7 +117,7 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            ElementalType attackType = ElementalType.Blaze;
+            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
             ElementalType defenderType = ElementalType.Normal; // Not used
             // Both Frost types, Blaze is strong against both
             DualType? defenderDualType = new DualType(ElementalType.Frost, ElementalType.Frost);
@@ -130,7 +130,7 @@ namespace TokuTactics.Tests.Bricks.Combat
 
             // Assert
             Assert.AreEqual(200f, result.Damage, "Blaze vs Frost/Frost should be 2.0x (double strong)");
-            Assert.AreEqual(MatchupResult.DoubleStrong, result.Result, "Matchup should be DoubleStrong");
+            Assert.AreEqual(MatchupResult.DoubleStrong, result.Matchup, "Matchup should be DoubleStrong");
             Assert.AreEqual(2.0f, result.Multiplier, "Multiplier should be 2.0");
         }
 
@@ -139,7 +139,7 @@ namespace TokuTactics.Tests.Bricks.Combat
             // Arrange
             var chart = BuildTestChart();
             float baseDamage = 100f;
-            ElementalType attackType = ElementalType.Blaze;
+            DualType attackType = new DualType(ElementalType.Blaze, ElementalType.Blaze);
             ElementalType defenderType = ElementalType.Normal; // Not used
             // Both Torrent types, Blaze is weak against both
             DualType? defenderDualType = new DualType(ElementalType.Torrent, ElementalType.Torrent);
@@ -152,7 +152,7 @@ namespace TokuTactics.Tests.Bricks.Combat
 
             // Assert
             Assert.AreEqual(25f, result.Damage, "Blaze vs Torrent/Torrent should be 0.25x (double weak)");
-            Assert.AreEqual(MatchupResult.DoubleWeak, result.Result, "Matchup should be DoubleWeak");
+            Assert.AreEqual(MatchupResult.DoubleWeak, result.Matchup, "Matchup should be DoubleWeak");
             Assert.AreEqual(0.25f, result.Multiplier, "Multiplier should be 0.25");
         }
     }
