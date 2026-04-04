@@ -1,3 +1,4 @@
+using TokuTactics.Commands.Combat;
 using TokuTactics.Core.Types;
 
 namespace TokuTactics.Bricks.Combat
@@ -23,48 +24,42 @@ namespace TokuTactics.Bricks.Combat
         /// Executes the type matchup calculation.
         /// </summary>
         /// <param name="baseDamage">Damage before type effectiveness</param>
-        /// <param name="attackerDualType">Attacker's dual type (innate + form)</param>
+        /// <param name="attackType">Attacker's elemental type</param>
         /// <param name="defenderType">Defender's single type (for enemies)</param>
         /// <param name="defenderDualType">Defender's dual type (for Rangers), null for enemies</param>
         /// <param name="typeChart">Type chart for matchup resolution</param>
-        /// <param name="strongMultiplier">Multiplier for strong matchups</param>
-        /// <param name="weakMultiplier">Multiplier for weak matchups</param>
-        /// <param name="doubleStrongMultiplier">Multiplier for double-strong matchups</param>
-        /// <param name="doubleWeakMultiplier">Multiplier for double-weak matchups</param>
+        /// <param name="constants">Tunable constants containing type matchup multipliers</param>
         /// <returns>Result containing modified damage, matchup type, and multiplier used</returns>
         public static Result Execute(
             float baseDamage,
-            DualType attackerDualType,
+            ElementalType attackType,
             ElementalType defenderType,
             DualType? defenderDualType,
             TypeChart typeChart,
-            float strongMultiplier,
-            float weakMultiplier,
-            float doubleStrongMultiplier,
-            float doubleWeakMultiplier)
+            TunableConstants constants)
         {
             MatchupResult matchup;
 
             // Determine matchup based on defender type structure
             if (defenderDualType != null)
             {
-                // Enemy (single type via DualType.RangerType) → Ranger (dual type)
-                matchup = typeChart.ResolveDefensive(attackerDualType.RangerType, defenderDualType.Value);
+                // Attacker (single type) → Ranger (dual type)
+                matchup = typeChart.ResolveDefensive(attackType, defenderDualType.Value);
             }
             else
             {
-                // Ranger (dual type) → Enemy (single type)
-                matchup = typeChart.Resolve(attackerDualType, defenderType);
+                // Attacker (single or dual type) → Enemy (single type)
+                matchup = typeChart.Resolve(attackType, defenderType);
             }
 
-            // Convert matchup to multiplier
+            // Convert matchup to multiplier using constants
             float multiplier = matchup switch
             {
-                MatchupResult.DoubleStrong => doubleStrongMultiplier,
-                MatchupResult.Strong => strongMultiplier,
+                MatchupResult.DoubleStrong => constants.DoubleStrongMultiplier,
+                MatchupResult.Strong => constants.StrongMultiplier,
                 MatchupResult.Neutral => 1.0f,
-                MatchupResult.Weak => weakMultiplier,
-                MatchupResult.DoubleWeak => doubleWeakMultiplier,
+                MatchupResult.Weak => constants.WeakMultiplier,
+                MatchupResult.DoubleWeak => constants.DoubleWeakMultiplier,
                 _ => 1.0f
             };
 
