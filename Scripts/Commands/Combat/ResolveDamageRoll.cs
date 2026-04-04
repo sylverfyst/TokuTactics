@@ -65,7 +65,7 @@ namespace TokuTactics.Commands.Combat
             // Extract primary type from attacker's dual type (form type for Rangers, single type for enemies)
             var matchup = applyTypeMatchup(
                 baseDamage,
-                p.AttackerDualType.FormType,
+                p.AttackType,
                 p.DefenderType,
                 p.DefenderDualType,
                 typeChart,
