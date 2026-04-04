@@ -48,8 +48,14 @@ namespace TokuTactics.Bricks.Combat
             }
             else
             {
-                // Attacker (single or dual type) → Enemy (single type)
-                matchup = typeChart.Resolve(attackType, defenderType);
+                // Attacker (single type) → Enemy (single type)
+                int result = typeChart.CheckSingle(attackType, defenderType);
+                matchup = result switch
+                {
+                    1 => MatchupResult.Strong,
+                    -1 => MatchupResult.Weak,
+                    _ => MatchupResult.Neutral
+                };
             }
 
             // Convert matchup to multiplier using constants

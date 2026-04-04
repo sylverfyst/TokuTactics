@@ -34,7 +34,7 @@ namespace TokuTactics.Commands.Combat
             // Optional brick function injections for testing
             Func<float, float, float, float> calculateBaseDamage = null,
             Func<float, float, float, Random, bool> rollDodge = null,
-            Func<float, DualType, ElementalType, DualType?, TypeChart, float, float, float, float, ApplyTypeMatchup.Result> applyTypeMatchup = null,
+            Func<float, ElementalType, ElementalType, DualType?, TypeChart, TunableConstants, ApplyTypeMatchup.Result> applyTypeMatchup = null,
             Func<float, float, float> calculateSameTypeBonus = null,
             Func<float, float, float> applyComboScaling = null,
             Func<float, float, float, Random, bool> rollCrit = null)
@@ -64,14 +64,11 @@ namespace TokuTactics.Commands.Combat
             // Brick 3: Apply type matchup
             var matchup = applyTypeMatchup(
                 baseDamage,
-                p.AttackerDualType,
+                p.AttackType,
                 p.DefenderType,
                 p.DefenderDualType,
                 typeChart,
-                constants.StrongMultiplier,
-                constants.WeakMultiplier,
-                constants.DoubleStrongMultiplier,
-                constants.DoubleWeakMultiplier);
+                constants);
 
             result.Matchup = matchup.Matchup;
             result.TypeMultiplier = matchup.Multiplier;
