@@ -30,12 +30,27 @@ namespace TokuTactics.Commands.Combat
             ResolveDamageRollParams p,
             TypeChart typeChart,
             Random rng,
-            TunableConstants constants)
+            TunableConstants constants,
+            // Optional brick function injections for testing
+            Func<float, float, float, float> calculateBaseDamage = null,
+            Func<float, float, float, Random, bool> rollDodge = null,
+            Func<float, DualType, ElementalType, DualType?, TypeChart, float, float, float, float, ApplyTypeMatchup.Result> applyTypeMatchup = null,
+            Func<float, float, float> calculateSameTypeBonus = null,
+            Func<float, float, float> applyComboScaling = null,
+            Func<float, float, float, Random, bool> rollCrit = null)
         {
+            // Initialize injected brick functions to defaults if not provided
+            calculateBaseDamage ??= CalculateBaseDamage.Execute;
+            rollDodge ??= RollDodge.Execute;
+            applyTypeMatchup ??= ApplyTypeMatchup.Execute;
+            calculateSameTypeBonus ??= CalculateSameTypeBonus.Execute;
+            applyComboScaling ??= ApplyComboScaling.Execute;
+            rollCrit ??= RollCrit.Execute;
+
             var result = new DamageResult();
 
             // Brick 1: Roll dodge
-            if (RollDodge.Execute(p.DefenderLck, constants.BaseDodge, constants.LckDodgeScale, rng))
+            if (rollDodge(p.DefenderLck, constants.BaseDodge, constants.LckDodgeScale, rng))
             {
                 result.WasDodged = true;
                 result.FinalDamage = 0;
@@ -43,17 +58,20 @@ namespace TokuTactics.Commands.Combat
             }
 
             // Brick 2: Calculate base damage
-            float baseDamage = CalculateBaseDamage.Execute(p.AttackerStr, p.DefenderDef, p.ActionPower);
+            float baseDamage = calculateBaseDamage(p.AttackerStr, p.DefenderDef, p.ActionPower);
             result.BaseDamage = baseDamage;
 
             // Brick 3: Apply type matchup
-            var matchup = ApplyTypeMatchup.Execute(
+            var matchup = applyTypeMatchup(
                 baseDamage,
-                p.AttackType,
+                p.AttackerDualType,
                 p.DefenderType,
                 p.DefenderDualType,
                 typeChart,
-                constants);
+                constants.StrongMultiplier,
+                constants.WeakMultiplier,
+                constants.DoubleStrongMultiplier,
+                constants.DoubleWeakMultiplier);
 
             result.Matchup = matchup.Matchup;
             result.TypeMultiplier = matchup.Multiplier;
@@ -62,16 +80,16 @@ namespace TokuTactics.Commands.Combat
             // Brick 4: Apply same-type bonus
             if (p.HasSameTypeBonus)
             {
-                damage = CalculateSameTypeBonus.Execute(damage, constants.SameTypeBonus);
+                damage = calculateSameTypeBonus(damage, constants.SameTypeBonus);
                 result.HadSameTypeBonus = true;
             }
 
             // Brick 5: Apply combo scaling
-            damage = ApplyComboScaling.Execute(damage, p.ComboMultiplier);
+            damage = applyComboScaling(damage, p.ComboMultiplier);
             result.ComboMultiplier = p.ComboMultiplier;
 
             // Brick 6: Roll crit
-            if (RollCrit.Execute(p.AttackerLck, constants.BaseCrit, constants.LckCritScale, rng))
+            if (rollCrit(p.AttackerLck, constants.BaseCrit, constants.LckCritScale, rng))
             {
                 damage *= constants.CritMultiplier;
                 result.WasCritical = true;
