@@ -1,0 +1,43 @@
+Starting Toku Tactics test suite...
+
+=== Toku Tactics — Running All Tests ===
+
+StatBlockTests: All passed
+TypeSystemTests: All passed
+HealthPoolTests: All passed
+CooldownTimerTests: All passed
+StatusEffectTests: All passed
+ComboScalerTests: All passed
+DamageCalculatorTests: All passed
+EventBusTests: All passed
+GridTests: All passed
+FormInstanceTests: All passed
+ProclivityTests: All passed
+RangerTests: All passed
+BattleizerTests: All passed
+MegazordTests: All passed
+EnemyTests: All passed
+FormPoolTests: All passed
+ActionBudgetTests: All passed
+BondTrackerTests: All passed
+TurnOrderTests: All passed
+GimmickResolverTests: All passed
+AssistResolverTests: All passed
+CombatResolverTests: All passed
+PhaseManagerTests: All passed
+LoadoutControllerTests: All passed
+SaveManagerTests: All passed
+MissionContextTests: All passed
+ContentTests: All passed
+  FAILED: CalculateBaseDamage — FAIL: Zero power should result in zero damage | Expected: 0, Actual: 1
+RollDodgeTests: All passed
+  FAILED: ApplyTypeMatchup — FAIL: Blaze vs Frost should be 1.5x (strong) | Expected: 150, Actual: 200
+CalculateSameTypeBonusTests: All passed
+RollCritTests: All passed
+ApplyComboScalingTests: All passed
+  FAILED: ResolveDamageRoll — FAIL: Should deal 10 damage | Expected: 10, Actual: 4
+
+=== Results: 31 suites passed, 3 suites failed ===
+SOME TESTS FAILED
+
+✓ All tests completed successfully!
