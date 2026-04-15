@@ -5,6 +5,7 @@ using TokuTactics.Core.Types;
 using TokuTactics.Entities.Forms;
 using TokuTactics.Entities.Rangers;
 using TokuTactics.Systems.FormManagement;
+using TokuTactics.Commands.Loadout;
 using TokuTactics.Systems.LoadoutSelection;
 using TokuTactics.Data.Content;
 

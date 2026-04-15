@@ -6,6 +6,7 @@ using TokuTactics.Core.Stats;
 using TokuTactics.Core.Types;
 using TokuTactics.Entities.Rangers;
 using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Commands.Loadout;
 using TokuTactics.Systems.LoadoutSelection;
 using TokuTactics.Systems.MissionSetup;
 using TokuTactics.Systems.PhaseManagement;

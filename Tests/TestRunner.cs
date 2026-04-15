@@ -55,6 +55,10 @@ namespace TokuTactics.Tests
             // Content
             RunSuite("Content", Data.ContentTests.RunAll, ref passed, ref failed);
 
+            // BCO Bricks - Loadout
+            RunSuite("ValidateMorphRequest", Bricks.Loadout.ValidateMorphRequestTests.Run, ref passed, ref failed);
+            RunSuite("ValidateLoadoutSubmission", Bricks.Loadout.ValidateLoadoutSubmissionTests.Run, ref passed, ref failed);
+
             // BCO Bricks - Form
             RunSuite("CheckFormAvailability", Bricks.Form.CheckFormAvailabilityTests.Run, ref passed, ref failed);
             RunSuite("ValidateFormEquip", Bricks.Form.ValidateFormEquipTests.Run, ref passed, ref failed);
@@ -109,6 +113,9 @@ namespace TokuTactics.Tests
             RunSuite("ResolveTargetDeath", Commands.Combat.ResolveTargetDeathTests.Run, ref passed, ref failed);
             RunSuite("ResolveReactiveGimmick", Commands.Combat.ResolveReactiveGimmickTests.Run, ref passed, ref failed);
             RunSuite("ProcessAssist", Commands.Combat.ProcessAssistTests.Run, ref passed, ref failed);
+
+            // BCO Commands - Loadout
+            RunSuite("ExecuteLoadoutSubmission", Commands.Loadout.ExecuteLoadoutSubmissionTests.Run, ref passed, ref failed);
 
             // BCO Commands - Form
             RunSuite("ProcessFormPoolTurn", Commands.Form.ProcessFormPoolTurnTests.Run, ref passed, ref failed);
