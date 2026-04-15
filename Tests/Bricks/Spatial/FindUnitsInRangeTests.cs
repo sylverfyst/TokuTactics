@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using TokuTactics.Bricks.Gimmick;
+using TokuTactics.Bricks.Spatial;
 using TokuTactics.Core.Grid;
 
-namespace TokuTactics.Tests.Bricks.Gimmick
+namespace TokuTactics.Tests.Bricks.Spatial
 {
     public static class FindUnitsInRangeTests
     {

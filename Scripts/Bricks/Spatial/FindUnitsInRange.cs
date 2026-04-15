@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using TokuTactics.Core.Grid;
 
-namespace TokuTactics.Bricks.Gimmick
+namespace TokuTactics.Bricks.Spatial
 {
     /// <summary>
     /// Finds target units within range of a position on the grid.

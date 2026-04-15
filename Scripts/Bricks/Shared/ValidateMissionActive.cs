@@ -1,6 +1,6 @@
 using TokuTactics.Systems.PhaseManagement;
 
-namespace TokuTactics.Bricks.Phase
+namespace TokuTactics.Bricks.Shared
 {
     /// <summary>
     /// Checks whether the mission state allows further actions.

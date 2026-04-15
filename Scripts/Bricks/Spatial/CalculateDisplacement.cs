@@ -1,7 +1,7 @@
 using System;
 using TokuTactics.Core.Grid;
 
-namespace TokuTactics.Bricks.Gimmick
+namespace TokuTactics.Bricks.Spatial
 {
     /// <summary>
     /// Calculates where a unit ends up after being displaced (push/pull).

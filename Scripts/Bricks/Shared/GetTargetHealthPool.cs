@@ -1,7 +1,7 @@
 using TokuTactics.Core.Health;
 using TokuTactics.Entities.Rangers;
 
-namespace TokuTactics.Bricks.Round
+namespace TokuTactics.Bricks.Shared
 {
     /// <summary>
     /// Returns the correct health pool for a ranger: the current form's pool if morphed,

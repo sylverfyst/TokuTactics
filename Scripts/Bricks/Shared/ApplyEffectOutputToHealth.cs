@@ -1,7 +1,7 @@
 using TokuTactics.Core.Health;
 using TokuTactics.Core.StatusEffect;
 
-namespace TokuTactics.Bricks.Phase
+namespace TokuTactics.Bricks.Shared
 {
     /// <summary>
     /// Applies damage and healing from a single EffectOutput to a single health pool.

@@ -1,7 +1,7 @@
-// Bricks/Gimmick Index
-// Re-exports all gimmick bricks for discovery
+// Bricks/Spatial Index
+// Re-exports all spatial bricks for discovery
 
-namespace TokuTactics.Bricks.Gimmick
+namespace TokuTactics.Bricks.Spatial
 {
     // FindUnitsInRange - Finds target units within Manhattan distance or adjacent to a position
     // CalculateDisplacement - Bresenham cardinal stepping for push/pull displacement

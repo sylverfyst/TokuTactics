@@ -55,10 +55,16 @@ namespace TokuTactics.Tests
             // Content
             RunSuite("Content", Data.ContentTests.RunAll, ref passed, ref failed);
 
-            // BCO Bricks - Gimmick
-            RunSuite("FindUnitsInRange", Bricks.Gimmick.FindUnitsInRangeTests.Run, ref passed, ref failed);
-            RunSuite("CalculateDisplacement", Bricks.Gimmick.CalculateDisplacementTests.Run, ref passed, ref failed);
-            RunSuite("FindPassableSpawnPositions", Bricks.Gimmick.FindPassableSpawnPositionsTests.Run, ref passed, ref failed);
+            // BCO Bricks - Spatial
+            RunSuite("FindUnitsInRange", Bricks.Spatial.FindUnitsInRangeTests.Run, ref passed, ref failed);
+            RunSuite("CalculateDisplacement", Bricks.Spatial.CalculateDisplacementTests.Run, ref passed, ref failed);
+            RunSuite("FindPassableSpawnPositions", Bricks.Spatial.FindPassableSpawnPositionsTests.Run, ref passed, ref failed);
+
+            // BCO Bricks - Shared
+            RunSuite("ValidateMissionActive", Bricks.Shared.ValidateMissionActiveTests.Run, ref passed, ref failed);
+            RunSuite("ApplyEffectOutputToHealth", Bricks.Shared.ApplyEffectOutputToHealthTests.Run, ref passed, ref failed);
+            RunSuite("GetTargetHealthPool", Bricks.Shared.GetTargetHealthPoolTests.Run, ref passed, ref failed);
+            RunSuite("CheckFormDeath", Bricks.Shared.CheckFormDeathTests.Run, ref passed, ref failed);
 
             // BCO Bricks - Assist
             RunSuite("CheckAssistEligibility", Bricks.Assist.CheckAssistEligibilityTests.Run, ref passed, ref failed);
@@ -73,14 +79,8 @@ namespace TokuTactics.Tests
             RunSuite("ConsumeMoveBudget", Bricks.Movement.ConsumeMoveBudgetTests.Run, ref passed, ref failed);
 
             // BCO Bricks - Phase
-            RunSuite("ValidateMissionActive", Bricks.Phase.ValidateMissionActiveTests.Run, ref passed, ref failed);
             RunSuite("CheckRangerDefeat", Bricks.Phase.CheckRangerDefeatTests.Run, ref passed, ref failed);
             RunSuite("CheckVictoryCondition", Bricks.Phase.CheckVictoryConditionTests.Run, ref passed, ref failed);
-            RunSuite("ApplyEffectOutputToHealth", Bricks.Phase.ApplyEffectOutputToHealthTests.Run, ref passed, ref failed);
-
-            // BCO Bricks - Round
-            RunSuite("GetTargetHealthPool", Bricks.Round.GetTargetHealthPoolTests.Run, ref passed, ref failed);
-            RunSuite("CheckFormDeath", Bricks.Round.CheckFormDeathTests.Run, ref passed, ref failed);
 
             // BCO Bricks - Combat
             RunSuite("CalculateBaseDamage", Bricks.Combat.CalculateBaseDamageTests.Run, ref passed, ref failed);

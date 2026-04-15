@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using TokuTactics.Core.Grid;
 
-namespace TokuTactics.Bricks.Gimmick
+namespace TokuTactics.Bricks.Spatial
 {
     /// <summary>
     /// Finds open tiles near a position for spawning units.

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using TokuTactics.Bricks.Gimmick;
+using TokuTactics.Bricks.Spatial;
 using TokuTactics.Core.Grid;
 using TokuTactics.Entities.Enemies.Gimmicks;
 
