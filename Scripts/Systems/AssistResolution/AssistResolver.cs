@@ -1,30 +1,17 @@
 using System.Collections.Generic;
+using TokuTactics.Bricks.Assist;
+using TokuTactics.Commands.Assist;
 using TokuTactics.Core.Grid;
 using TokuTactics.Systems.ActionEconomy;
 
 namespace TokuTactics.Systems.AssistResolution
 {
     /// <summary>
-    /// Resolves adjacency assists when a Ranger initiates combat.
-    /// 
-    /// Finds all adjacent morphed Rangers, checks bond tiers, and produces
-    /// a declarative AssistResolution describing what each assist contributes.
-    /// Does NOT mutate game state — the combat resolver reads the resolution
-    /// and applies damage, bond experience, form disruption, and action refreshes.
-    /// 
-    /// Bond tier effects:
-    /// - Tier 0: Basic assist. Assist damage at base scaling.
-    /// - Tier 1: Increased assist damage (BondTier1DamageBonus multiplier).
-    /// - Tier 2: Pair attack auto-triggers. Assister is forced to base form —
-    ///   vacated form goes on cooldown. Higher damage but costly.
-    /// - Tier 3: Pair attack with current form. Replaces tier 2 — no disruption,
-    ///   no cooldown. The partnership has matured.
-    /// - Tier 4: Everything from tier 3, plus: can refresh partner's action
-    ///   (once per round per character).
-    /// 
-    /// Assist damage is subject to combo scaling via the attacker's ComboScaler.
-    /// Assists during chains deal higher damage than the chaining Ranger's scaled
-    /// damage but are still reduced. No laundering full damage through assists.
+    /// Orchestrator: Resolves adjacency assists when a Ranger initiates combat.
+    ///
+    /// Finds adjacent morphed Rangers, checks eligibility, and delegates
+    /// assist effect resolution to the ResolveAssistEffect command.
+    /// Does NOT mutate game state — produces declarative AssistResolution.
     /// </summary>
     public class AssistResolver
     {
@@ -45,13 +32,6 @@ namespace TokuTactics.Systems.AssistResolution
 
         /// <summary>
         /// Resolve all assists for an attack action.
-        /// 
-        /// attackerId: the Ranger initiating the attack.
-        /// attackerPosition: grid position of the attacker.
-        /// comboAssistMultiplier: from ComboScaler.AssistDamageMultiplier — scales assist damage
-        ///   based on how deep in the chain the attacker is.
-        /// rangerStates: lookup of Ranger states needed for resolution. The combat system
-        ///   provides this so the resolver doesn't directly depend on the Ranger entity.
         /// </summary>
         public AssistResolution Resolve(
             string attackerId,
@@ -61,102 +41,26 @@ namespace TokuTactics.Systems.AssistResolution
         {
             var resolution = new AssistResolution();
 
-            // Look up attacker state for tier 4 refresh validation
             rangerStates.TryGetValue(attackerId, out var attackerState);
 
-            // Find all units adjacent to the attacker
             var adjacentUnitIds = _grid.GetAdjacentUnits(attackerPosition);
 
             foreach (var unitId in adjacentUnitIds)
             {
-                // Only Rangers can assist — skip enemies
-                if (!rangerStates.ContainsKey(unitId)) continue;
+                if (!CheckAssistEligibility.Execute(unitId, attackerId, rangerStates))
+                    continue;
 
                 var candidateState = rangerStates[unitId];
-
-                // Only morphed Rangers can assist
-                if (!candidateState.IsMorphed) continue;
-
-                // Can't assist yourself
-                if (unitId == attackerId) continue;
-
                 var bond = _bondTracker.GetBond(attackerId, unitId);
-                var assist = ResolveAssist(
-                    attackerId, unitId, bond, candidateState,
-                    attackerState, comboAssistMultiplier);
+
+                var assist = ResolveAssistEffect.Execute(
+                    attackerId, unitId, bond, candidateState, attackerState,
+                    comboAssistMultiplier, BondTier1DamageBonus, PairAttackDamageMultiplier);
 
                 resolution.Assists.Add(assist);
             }
 
             return resolution;
-        }
-
-        /// <summary>
-        /// Resolve a single assist from one adjacent Ranger.
-        /// </summary>
-        private AssistEffect ResolveAssist(
-            string attackerId,
-            string assisterId,
-            BondState bond,
-            AssistCandidateState assisterState,
-            AssistCandidateState attackerState,
-            float comboAssistMultiplier)
-        {
-            var effect = new AssistEffect
-            {
-                AssisterId = assisterId,
-                AttackerId = attackerId,
-                BondTier = bond.Tier,
-                AssisterFormId = assisterState.CurrentFormId,
-                AssisterWeaponPower = assisterState.WeaponBasePower,
-                AssisterStr = assisterState.Str,
-                ChaMultiplier = assisterState.Cha,
-                AssisterDualType = assisterState.AssisterDualType
-            };
-
-            // === Base Assist Damage ===
-            float bondDamageMultiplier = 1.0f;
-
-            if (bond.Tier >= 1)
-                bondDamageMultiplier = BondTier1DamageBonus;
-
-            // Tier 2+ pair attacks override the bond damage multiplier
-            if (bond.Tier >= 2)
-                bondDamageMultiplier = PairAttackDamageMultiplier;
-
-            effect.DamageMultiplier = comboAssistMultiplier * bondDamageMultiplier;
-            effect.IsPairAttack = bond.Tier >= 2;
-
-            // === Tier 2 Form Disruption ===
-            // At exactly tier 2, the pair attack forces the assister to base form.
-            // The pair attack uses the BASE form for damage, not the vacated form.
-            // At tier 3+, this is replaced — no disruption, uses current form.
-            if (bond.Tier == 2)
-            {
-                if (!assisterState.IsInBaseForm)
-                {
-                    effect.ForceToBaseForm = true;
-                    effect.VacatedFormId = assisterState.CurrentFormId;
-                    // Pair attack damage uses base form, not the vacated form
-                    effect.AssisterFormId = assisterState.BaseFormId;
-                }
-            }
-
-            // === Tier 4 Action Refresh ===
-            // The assister can refresh the attacker's action — once per round per character.
-            // Assister must not have given a refresh, and must not have received one.
-            // Attacker must not have already received a refresh this round.
-            if (bond.Tier >= 4)
-            {
-                bool assisterCanGive = !assisterState.HasUsedBondRefresh
-                    && !assisterState.HasReceivedBondRefresh;
-                bool attackerCanReceive = attackerState == null
-                    || !attackerState.HasReceivedBondRefresh;
-
-                effect.CanRefreshPartner = assisterCanGive && attackerCanReceive;
-            }
-
-            return effect;
         }
     }
 
