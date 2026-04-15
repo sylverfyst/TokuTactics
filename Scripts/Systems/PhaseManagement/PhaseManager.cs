@@ -150,6 +150,10 @@ namespace TokuTactics.Systems.PhaseManagement
                 });
             }
 
+            // Dispatch status effect events before checking mission end
+            if (result.DemorphEvents.Count > 0 || result.AggressionEvents.Count > 0)
+                _eventBus.Dispatch();
+
             if (result.MissionEnded)
             {
                 ApplyEndState(result.EndState, result.FallenRangerId);
@@ -278,15 +282,7 @@ namespace TokuTactics.Systems.PhaseManagement
         {
             if (!ValidateMissionActive.Execute(MissionState)) return;
 
-            FallenRangerId = fallenRangerId;
-            MissionState = MissionState.Defeat;
-
-            _eventBus.Publish(new MissionDefeatEvent
-            {
-                FallenRangerId = fallenRangerId,
-                RoundsElapsed = RoundNumber
-            });
-            _eventBus.Dispatch();
+            ApplyEndState(MissionState.Defeat, fallenRangerId);
         }
 
         /// <summary>
@@ -295,7 +291,7 @@ namespace TokuTactics.Systems.PhaseManagement
         /// </summary>
         public bool CheckWinLoss()
         {
-            if (MissionState != MissionState.Active) return true;
+            if (!ValidateMissionActive.Execute(MissionState)) return true;
 
             var result = ResolveWinLoss.Execute(_rangers, _enemies, _defeatTargetIds);
 
