@@ -12,6 +12,7 @@ using TokuTactics.Entities.Rangers;
 using TokuTactics.Entities.Weapons;
 using TokuTactics.Systems.ActionEconomy;
 using TokuTactics.Systems.AssistResolution;
+using TokuTactics.Commands.Gimmick;
 using TokuTactics.Systems.GimmickResolution;
 using TokuTactics.Systems.CombatResolution;
 using TokuTactics.Data.Content;

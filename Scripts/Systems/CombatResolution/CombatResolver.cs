@@ -13,7 +13,8 @@ using TokuTactics.Entities.Weapons;
 using TokuTactics.Core.StatusEffect;
 using TokuTactics.Systems.ActionEconomy;
 using TokuTactics.Systems.AssistResolution;
-using GimmickResolutionNS = TokuTactics.Systems.GimmickResolution;
+using TokuTactics.Commands.Gimmick;
+using GimmickResolver = TokuTactics.Systems.GimmickResolution.GimmickResolver;
 
 namespace TokuTactics.Systems.CombatResolution
 {
@@ -38,7 +39,7 @@ namespace TokuTactics.Systems.CombatResolution
         private readonly Random _rng;
         private readonly TunableConstants _constants;
         private readonly AssistResolver _assistResolver;
-        private readonly GimmickResolutionNS.GimmickResolver _gimmickResolver;
+        private readonly GimmickResolver _gimmickResolver;
         private readonly BondTracker _bondTracker;
         private readonly EventBus _eventBus;
 
@@ -51,7 +52,7 @@ namespace TokuTactics.Systems.CombatResolution
             Random rng,
             TunableConstants constants,
             AssistResolver assistResolver,
-            GimmickResolutionNS.GimmickResolver gimmickResolver,
+            GimmickResolver gimmickResolver,
             BondTracker bondTracker,
             EventBus eventBus)
         {
@@ -394,7 +395,7 @@ namespace TokuTactics.Systems.CombatResolution
         public bool AggressionTriggered { get; set; }
 
         /// <summary>Reactive gimmick that fired in response to the attack (OnHit).</summary>
-        public GimmickResolutionNS.GimmickResolution ReactiveGimmick { get; set; }
+        public Commands.Gimmick.GimmickResolution ReactiveGimmick { get; set; }
 
         /// <summary>Total damage dealt across primary + all assists.</summary>
         public int TotalDamage

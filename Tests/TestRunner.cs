@@ -94,6 +94,9 @@ namespace TokuTactics.Tests
             RunSuite("ApplyStatusEffect", Bricks.Combat.ApplyStatusEffectTests.Run, ref passed, ref failed);
             RunSuite("CalculateStatusPotency", Bricks.Combat.CalculateStatusPotencyTests.Run, ref passed, ref failed);
             RunSuite("ValidateReactiveGimmick", Bricks.Combat.ValidateReactiveGimmickTests.Run, ref passed, ref failed);
+            RunSuite("CheckAttackBudget", Bricks.Combat.CheckAttackBudgetTests.Run, ref passed, ref failed);
+            RunSuite("ConsumeActionBudget", Bricks.Combat.ConsumeActionBudgetTests.Run, ref passed, ref failed);
+            RunSuite("ValidateAttackRange", Bricks.Combat.ValidateAttackRangeTests.Run, ref passed, ref failed);
 
             // BCO Commands - Combat
             RunSuite("ResolveDamageRoll", Commands.Combat.ResolveDamageRollTests.Run, ref passed, ref failed);

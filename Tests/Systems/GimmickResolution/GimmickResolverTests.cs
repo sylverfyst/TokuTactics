@@ -5,6 +5,7 @@ using TokuTactics.Core.StatusEffect.Triggers;
 using TokuTactics.Core.StatusEffect.Behaviors;
 using TokuTactics.Entities.Enemies.Gimmicks;
 using TokuTactics.Entities.Weapons;
+using TokuTactics.Commands.Gimmick;
 using TokuTactics.Systems.GimmickResolution;
 
 namespace TokuTactics.Tests.Systems.GimmickResolution

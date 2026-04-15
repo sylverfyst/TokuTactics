@@ -13,7 +13,7 @@ namespace TokuTactics.Commands.Gimmick
     /// </summary>
     public static class ResolveGimmickEffects
     {
-        public static Systems.GimmickResolution.GimmickResolution Execute(
+        public static GimmickResolution Execute(
             BattleGrid grid,
             GridPosition ownerPosition,
             GimmickOutput output,
@@ -28,9 +28,9 @@ namespace TokuTactics.Commands.Gimmick
             findSpawnPositions ??= FindPassableSpawnPositions.Execute;
 
             if (output == null || !output.HasEffect)
-                return Systems.GimmickResolution.GimmickResolution.Empty;
+                return GimmickResolution.Empty;
 
-            var resolution = new Systems.GimmickResolution.GimmickResolution();
+            var resolution = new GimmickResolution();
 
             var targetsInRange = findUnitsInRange(grid, ownerPosition, behaviorRange, targetUnitIds);
 
@@ -39,7 +39,7 @@ namespace TokuTactics.Commands.Gimmick
             {
                 foreach (var targetId in targetsInRange)
                 {
-                    resolution.DamageEffects.Add(new Systems.GimmickResolution.DamageEffect
+                    resolution.DamageEffects.Add(new DamageEffect
                     {
                         TargetId = targetId,
                         Damage = output.Damage
@@ -52,7 +52,7 @@ namespace TokuTactics.Commands.Gimmick
             {
                 foreach (var targetId in targetsInRange)
                 {
-                    resolution.StatusEffects.Add(new Systems.GimmickResolution.StatusEffectApplication
+                    resolution.StatusEffects.Add(new StatusEffectApplication
                     {
                         TargetId = targetId,
                         Template = output.StatusEffect
@@ -83,7 +83,7 @@ namespace TokuTactics.Commands.Gimmick
                     var tile = grid.GetTile(pos);
                     if (tile != null && !tile.IsOccupied)
                     {
-                        resolution.TerrainChanges.Add(new Systems.GimmickResolution.TerrainChange
+                        resolution.TerrainChanges.Add(new TerrainChange
                         {
                             Position = pos,
                             NewTerrain = output.TargetTerrain
@@ -100,7 +100,7 @@ namespace TokuTactics.Commands.Gimmick
 
                 foreach (var pos in spawnPositions)
                 {
-                    resolution.Spawns.Add(new Systems.GimmickResolution.SpawnEffect
+                    resolution.Spawns.Add(new SpawnEffect
                     {
                         Position = pos,
                         EnemyDataId = output.SpawnEnemyDataId
@@ -122,7 +122,7 @@ namespace TokuTactics.Commands.Gimmick
 
                     if (destination != targetPos.Value)
                     {
-                        resolution.Displacements.Add(new Systems.GimmickResolution.DisplacementEffect
+                        resolution.Displacements.Add(new DisplacementEffect
                         {
                             TargetId = targetId,
                             From = targetPos.Value,
