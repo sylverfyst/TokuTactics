@@ -55,6 +55,12 @@ namespace TokuTactics.Tests
             // Content
             RunSuite("Content", Data.ContentTests.RunAll, ref passed, ref failed);
 
+            // BCO Bricks - Movement
+            RunSuite("ValidateMovementRange", Bricks.Movement.ValidateMovementRangeTests.Run, ref passed, ref failed);
+            RunSuite("CheckActionBudget", Bricks.Movement.CheckActionBudgetTests.Run, ref passed, ref failed);
+            RunSuite("ExecuteGridMove", Bricks.Movement.ExecuteGridMoveTests.Run, ref passed, ref failed);
+            RunSuite("ConsumeMoveBudget", Bricks.Movement.ConsumeMoveBudgetTests.Run, ref passed, ref failed);
+
             // BCO Bricks - Phase
             RunSuite("ValidateMissionActive", Bricks.Phase.ValidateMissionActiveTests.Run, ref passed, ref failed);
             RunSuite("CheckRangerDefeat", Bricks.Phase.CheckRangerDefeatTests.Run, ref passed, ref failed);
@@ -84,6 +90,9 @@ namespace TokuTactics.Tests
             RunSuite("ResolveTargetDeath", Commands.Combat.ResolveTargetDeathTests.Run, ref passed, ref failed);
             RunSuite("ResolveReactiveGimmick", Commands.Combat.ResolveReactiveGimmickTests.Run, ref passed, ref failed);
             RunSuite("ProcessAssist", Commands.Combat.ProcessAssistTests.Run, ref passed, ref failed);
+
+            // BCO Commands - Movement
+            RunSuite("ExecuteMovement", Commands.Movement.ExecuteMovementTests.Run, ref passed, ref failed);
 
             // BCO Commands - Phase
             RunSuite("ResolveWinLoss", Commands.Phase.ResolveWinLossTests.Run, ref passed, ref failed);
