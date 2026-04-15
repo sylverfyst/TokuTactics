@@ -118,6 +118,7 @@ namespace TokuTactics.Tests
             RunSuite("ResolveTargetDeath", Commands.Combat.ResolveTargetDeathTests.Run, ref passed, ref failed);
             RunSuite("ResolveReactiveGimmick", Commands.Combat.ResolveReactiveGimmickTests.Run, ref passed, ref failed);
             RunSuite("ProcessAssist", Commands.Combat.ProcessAssistTests.Run, ref passed, ref failed);
+            RunSuite("ExecuteAttack", Commands.Combat.ExecuteAttackTests.Run, ref passed, ref failed);
 
             // BCO Commands - Loadout
             RunSuite("ExecuteLoadoutSubmission", Commands.Loadout.ExecuteLoadoutSubmissionTests.Run, ref passed, ref failed);
