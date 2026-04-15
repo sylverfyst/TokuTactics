@@ -6,6 +6,7 @@ using TokuTactics.Core.Events;
 using TokuTactics.Core.Types;
 using TokuTactics.Entities.Forms;
 using TokuTactics.Entities.Rangers;
+using TokuTactics.Core.Form;
 using TokuTactics.Systems.FormManagement;
 
 namespace TokuTactics.Systems.LoadoutSelection

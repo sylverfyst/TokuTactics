@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TokuTactics.Bricks.Assist;
 using TokuTactics.Core.Types;
+using TokuTactics.Core.Assist;
 using TokuTactics.Systems.AssistResolution;
 
 namespace TokuTactics.Tests.Bricks.Assist

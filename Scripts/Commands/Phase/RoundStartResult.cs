@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using TokuTactics.Systems.PhaseManagement;
+using TokuTactics.Core.Phase;
 
 namespace TokuTactics.Commands.Phase
 {

@@ -1,7 +1,7 @@
 using System;
 using TokuTactics.Bricks.Assist;
-using TokuTactics.Systems.ActionEconomy;
-using TokuTactics.Systems.AssistResolution;
+using TokuTactics.Core.ActionEconomy;
+using TokuTactics.Core.Assist;
 
 namespace TokuTactics.Commands.Assist
 {

@@ -1,7 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
+using TokuTactics.Bricks.Bond;
 using TokuTactics.Core.Grid;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.Assist;
 using TokuTactics.Systems.AssistResolution;
 
 namespace TokuTactics.Tests.Systems.AssistResolution
@@ -49,10 +52,10 @@ namespace TokuTactics.Tests.Systems.AssistResolution
         {
             // Pump experience to reach the desired tier
             var bond = tracker.GetBond(a, b);
-            if (tier >= 1) bond.AddExperience(50, tracker.TierThresholds);
-            if (tier >= 2) bond.AddExperience(100, tracker.TierThresholds);
-            if (tier >= 3) bond.AddExperience(200, tracker.TierThresholds);
-            if (tier >= 4) bond.AddExperience(350, tracker.TierThresholds);
+            if (tier >= 1) { bond.Experience += 50; bond.Tier = ResolveBondTier.Execute(bond.Experience, tracker.TierThresholds); }
+            if (tier >= 2) { bond.Experience += 100; bond.Tier = ResolveBondTier.Execute(bond.Experience, tracker.TierThresholds); }
+            if (tier >= 3) { bond.Experience += 200; bond.Tier = ResolveBondTier.Execute(bond.Experience, tracker.TierThresholds); }
+            if (tier >= 4) { bond.Experience += 350; bond.Tier = ResolveBondTier.Execute(bond.Experience, tracker.TierThresholds); }
         }
 
         // === No Assists ===

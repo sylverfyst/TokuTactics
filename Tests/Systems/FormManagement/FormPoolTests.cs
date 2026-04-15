@@ -2,6 +2,7 @@ using TokuTactics.Core.Stats;
 using TokuTactics.Core.Types;
 using TokuTactics.Entities.Forms;
 using TokuTactics.Entities.Weapons;
+using TokuTactics.Core.Form;
 using TokuTactics.Systems.FormManagement;
 
 namespace TokuTactics.Tests.Systems.FormManagement

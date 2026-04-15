@@ -1,5 +1,7 @@
 using System;
 using TokuTactics.Bricks.Combat;
+using TokuTactics.Bricks.Shared;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
 
 namespace TokuTactics.Tests.Bricks.Combat
@@ -17,15 +19,15 @@ namespace TokuTactics.Tests.Bricks.Combat
         private static void Test_CanAct_ReturnsTrue()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
             Assert(CheckAttackBudget.Execute(budget) == true, "Fresh budget should allow action");
         }
 
         private static void Test_AlreadyActed_ReturnsFalse()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
-            budget.ConsumeAction();
+            StartBudgetTurn.Execute(budget);
+            ConsumeActionBudget.Execute(budget);
             Assert(CheckAttackBudget.Execute(budget) == false, "Used budget should not allow action");
         }
 

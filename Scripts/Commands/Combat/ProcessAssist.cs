@@ -1,11 +1,12 @@
+using TokuTactics.Systems.ActionEconomy;
 using System;
 using TokuTactics.Bricks.Combat;
 using TokuTactics.Core.Combat;
 using TokuTactics.Core.Types;
 using TokuTactics.Entities.Enemies;
 using TokuTactics.Entities.Rangers;
-using TokuTactics.Systems.ActionEconomy;
-using TokuTactics.Systems.AssistResolution;
+using TokuTactics.Core.ActionEconomy;
+using TokuTactics.Core.Assist;
 
 namespace TokuTactics.Commands.Combat
 {

@@ -1,5 +1,7 @@
+using TokuTactics.Bricks.Shared;
 using System;
 using TokuTactics.Bricks.Movement;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
 
 namespace TokuTactics.Tests.Bricks.Movement
@@ -17,7 +19,7 @@ namespace TokuTactics.Tests.Bricks.Movement
         private static void Test_CanMove_ReturnsTrue()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
             Assert(CheckActionBudget.Execute(budget) == true,
                 "Fresh budget should allow movement");
@@ -26,8 +28,8 @@ namespace TokuTactics.Tests.Bricks.Movement
         private static void Test_AlreadyMoved_ReturnsFalse()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
-            budget.ConsumeMove();
+            StartBudgetTurn.Execute(budget);
+            ConsumeMoveBudget.Execute(budget);
 
             Assert(CheckActionBudget.Execute(budget) == false,
                 "Used budget should not allow movement");

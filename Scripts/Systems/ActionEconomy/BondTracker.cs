@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TokuTactics.Bricks.Bond;
+using TokuTactics.Core.ActionEconomy;
 
 namespace TokuTactics.Systems.ActionEconomy
 {
@@ -50,7 +51,8 @@ namespace TokuTactics.Systems.ActionEconomy
 
             int baseExp = 10; // tunable
             int scaledExp = CalculateScaledBondExp.Execute(baseExp, chaMultiplier);
-            bond.AddExperience(scaledExp, TierThresholds);
+            bond.Experience += scaledExp;
+            bond.Tier = ResolveBondTier.Execute(bond.Experience, TierThresholds);
 
             if (bond.Tier > previousTier)
             {
@@ -92,59 +94,4 @@ namespace TokuTactics.Systems.ActionEconomy
         }
     }
 
-    /// <summary>
-    /// The state of a bond between two specific Rangers.
-    /// </summary>
-    public class BondState
-    {
-        public string RangerA { get; }
-        public string RangerB { get; }
-        public int Experience { get; private set; }
-        public int Tier { get; private set; }
-
-        public BondState(string rangerA, string rangerB)
-        {
-            RangerA = rangerA;
-            RangerB = rangerB;
-            Experience = 0;
-            Tier = 0;
-        }
-
-        public void AddExperience(int amount, int[] thresholds)
-        {
-            Experience += amount;
-            UpdateTier(thresholds);
-        }
-
-        private void UpdateTier(int[] thresholds)
-        {
-            Tier = ResolveBondTier.Execute(Experience, thresholds);
-        }
-
-        /// <summary>
-        /// Check if this bond involves a specific Ranger.
-        /// </summary>
-        public bool Involves(string rangerId) => RangerA == rangerId || RangerB == rangerId;
-
-        /// <summary>
-        /// Get the other Ranger in this bond pair.
-        /// </summary>
-        public string GetPartner(string rangerId)
-        {
-            if (RangerA == rangerId) return RangerB;
-            if (RangerB == rangerId) return RangerA;
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Event when a bond reaches a new tier.
-    /// </summary>
-    public class BondTierChange
-    {
-        public string RangerA { get; set; }
-        public string RangerB { get; set; }
-        public int OldTier { get; set; }
-        public int NewTier { get; set; }
-    }
 }

@@ -6,6 +6,7 @@ using TokuTactics.Core.Cooldown;
 using TokuTactics.Core.Combat;
 using TokuTactics.Core.StatusEffect;
 using TokuTactics.Entities.Enemies.Gimmicks;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
 
 namespace TokuTactics.Entities.Enemies

@@ -1,8 +1,9 @@
+using TokuTactics.Systems.FormManagement;
 using System;
 using System.Collections.Generic;
 using TokuTactics.Entities.Enemies;
 using TokuTactics.Entities.Rangers;
-using TokuTactics.Systems.FormManagement;
+using TokuTactics.Core.Form;
 
 namespace TokuTactics.Commands.Phase
 {

@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using TokuTactics.Bricks.Movement;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Commands.Movement;
 using TokuTactics.Core.Grid;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
 
 namespace TokuTactics.Tests.Commands.Movement
@@ -50,7 +53,7 @@ namespace TokuTactics.Tests.Commands.Movement
             var grid = new BattleGrid(5, 5);
             grid.PlaceUnit("u1", new GridPosition(0, 0));
             var budget = MakeBudget();
-            budget.ConsumeMove();
+            ConsumeMoveBudget.Execute(budget);
             var range = new Dictionary<GridPosition, int> { { new GridPosition(1, 1), 1 } };
 
             var result = ExecuteMovement.Execute("u1", new GridPosition(1, 1), range, grid, budget);
@@ -104,7 +107,7 @@ namespace TokuTactics.Tests.Commands.Movement
         private static ActionBudget MakeBudget()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
             return budget;
         }
 

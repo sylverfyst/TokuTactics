@@ -1,4 +1,4 @@
-using TokuTactics.Systems.AssistResolution;
+using TokuTactics.Core.Assist;
 
 namespace TokuTactics.Bricks.Assist
 {

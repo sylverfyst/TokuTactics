@@ -1,5 +1,6 @@
 using System;
 using TokuTactics.Bricks.Shared;
+using TokuTactics.Core.Phase;
 using TokuTactics.Systems.PhaseManagement;
 
 namespace TokuTactics.Tests.Bricks.Shared

@@ -10,8 +10,11 @@ using TokuTactics.Entities.Enemies;
 using TokuTactics.Entities.Forms;
 using TokuTactics.Entities.Rangers;
 using TokuTactics.Entities.Weapons;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.Form;
 using TokuTactics.Systems.FormManagement;
+using TokuTactics.Core.Phase;
 using TokuTactics.Systems.PhaseManagement;
 using TokuTactics.Data.Content;
 

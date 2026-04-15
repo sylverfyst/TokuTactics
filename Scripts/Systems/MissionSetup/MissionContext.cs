@@ -6,15 +6,20 @@ using TokuTactics.Core.Types;
 using TokuTactics.Core.Stats;
 using TokuTactics.Core.Combat;
 using TokuTactics.Core.Events;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Entities.Enemies;
 using TokuTactics.Entities.Forms;
 using TokuTactics.Entities.Rangers;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.Assist;
 using TokuTactics.Systems.AssistResolution;
 using TokuTactics.Systems.CombatResolution;
+using TokuTactics.Core.Form;
 using TokuTactics.Systems.FormManagement;
 using TokuTactics.Systems.GimmickResolution;
 using TokuTactics.Systems.LoadoutSelection;
+using TokuTactics.Core.Phase;
 using TokuTactics.Systems.PhaseManagement;
 using TokuTactics.Systems.SaveLoad;
 using TokuTactics.Data.Content;
@@ -222,7 +227,8 @@ namespace TokuTactics.Systems.MissionSetup
             foreach (var bondSave in campaignData.Bonds)
             {
                 var bond = bondTracker.GetBond(bondSave.RangerAId, bondSave.RangerBId);
-                bond.AddExperience(bondSave.Experience, bondTracker.TierThresholds);
+                bond.Experience = bondSave.Experience;
+                bond.Tier = Bricks.Bond.ResolveBondTier.Execute(bond.Experience, bondTracker.TierThresholds);
             }
 
             // === Step 7: Construct Systems ===
@@ -296,7 +302,7 @@ namespace TokuTactics.Systems.MissionSetup
         {
             if (ActionBudgets.ContainsKey(unitId))
             {
-                ActionBudgets[unitId].StartTurn();
+                StartBudgetTurn.Execute(ActionBudgets[unitId]);
             }
         }
 
