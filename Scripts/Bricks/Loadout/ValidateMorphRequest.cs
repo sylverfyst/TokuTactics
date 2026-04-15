@@ -1,5 +1,5 @@
 using TokuTactics.Entities.Rangers;
-using TokuTactics.Systems.LoadoutSelection;
+using TokuTactics.Commands.Loadout;
 
 namespace TokuTactics.Bricks.Loadout
 {

@@ -10,22 +10,6 @@ using TokuTactics.Systems.FormManagement;
 
 namespace TokuTactics.Systems.LoadoutSelection
 {
-    public enum MorphRequestResult
-    {
-        NeedsLoadout,
-        MorphComplete,
-        Invalid
-    }
-
-    public enum LoadoutResult
-    {
-        Accepted,
-        OverBudget,
-        InvalidForm,
-        AlreadyLocked,
-        Empty
-    }
-
     /// <summary>
     /// Orchestrator: Controls the loadout selection flow and first-morph gate.
     /// Delegates validation to bricks and submission to the ExecuteLoadoutSubmission command.
@@ -62,9 +46,8 @@ namespace TokuTactics.Systems.LoadoutSelection
             if (validation != MorphRequestResult.MorphComplete)
                 return validation;
 
-            // Perform morph — orchestrator owns the mutation
-            if (!ranger.Morph())
-                return MorphRequestResult.Invalid;
+            // Perform morph — brick already validated, orchestrator owns the mutation
+            ranger.Morph();
 
             _eventBus.Publish(new PlayMorphAnimationEvent
             {
@@ -100,12 +83,23 @@ namespace TokuTactics.Systems.LoadoutSelection
 
         public LoadoutResult SubmitLoadout(List<string> selectedFormIds)
         {
-            var result = ExecuteLoadoutSubmission.Execute(selectedFormIds, _formPool);
+            // Build registered IDs for validation
+            var poolStatus = _formPool.GetPoolStatus();
+            var registeredIds = new HashSet<string>();
+            foreach (var entry in poolStatus)
+                registeredIds.Add(entry.FormData.Id);
+
+            var result = ExecuteLoadoutSubmission.Execute(
+                selectedFormIds, _formPool.IsLoadoutLocked, _formPool.Budget,
+                registeredIds, _formPool.BaseFormId);
 
             if (result != LoadoutResult.Accepted)
                 return result;
 
-            // Lock and publish — orchestrator owns these
+            // Equip, lock, publish — orchestrator owns all mutations
+            foreach (var formId in selectedFormIds)
+                _formPool.EquipForm(formId);
+
             _formPool.LockLoadout();
 
             _eventBus.Publish(new LoadoutLockedEvent

@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using TokuTactics.Systems.LoadoutSelection;
+using TokuTactics.Commands.Loadout;
 
 namespace TokuTactics.Bricks.Loadout
 {

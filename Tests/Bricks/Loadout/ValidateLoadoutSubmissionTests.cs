@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TokuTactics.Bricks.Loadout;
-using TokuTactics.Systems.LoadoutSelection;
+using TokuTactics.Commands.Loadout;
 
 namespace TokuTactics.Tests.Bricks.Loadout
 {

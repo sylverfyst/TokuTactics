@@ -4,7 +4,7 @@ using TokuTactics.Core.Stats;
 using TokuTactics.Core.Types;
 using TokuTactics.Data.Content;
 using TokuTactics.Entities.Rangers;
-using TokuTactics.Systems.LoadoutSelection;
+using TokuTactics.Commands.Loadout;
 
 namespace TokuTactics.Tests.Bricks.Loadout
 {

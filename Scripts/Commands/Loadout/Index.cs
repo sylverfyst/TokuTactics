@@ -3,5 +3,7 @@
 
 namespace TokuTactics.Commands.Loadout
 {
-    // ExecuteLoadoutSubmission - Validates and equips selected forms for a mission loadout
+    // ExecuteLoadoutSubmission - Validates a loadout submission against constraints (pure validation)
+    // MorphRequestResult - Enum: NeedsLoadout, MorphComplete, Invalid
+    // LoadoutResult - Enum: Accepted, OverBudget, InvalidForm, AlreadyLocked, Empty
 }
