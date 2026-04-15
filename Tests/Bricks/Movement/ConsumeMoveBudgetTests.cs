@@ -1,3 +1,4 @@
+using TokuTactics.Bricks.Shared;
 using System;
 using TokuTactics.Bricks.Movement;
 using TokuTactics.Systems.ActionEconomy;
@@ -16,7 +17,7 @@ namespace TokuTactics.Tests.Bricks.Movement
         private static void Test_ConsumesMovement()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
             ConsumeMoveBudget.Execute(budget);
 

@@ -115,12 +115,8 @@ namespace TokuTactics.Tests.Commands.Assist
 
         private static BondState MakeBond(int tier)
         {
-            var tracker = new BondTracker();
-            // Thresholds: { 50, 150, 350, 700 } — add enough XP to reach desired tier
-            tracker.TierThresholds = new[] { 1, 2, 3, 4 };
-            var bond = tracker.GetBond("a", "b");
-            for (int i = 0; i < tier; i++)
-                bond.AddExperience(1, tracker.TierThresholds);
+            var bond = new BondState("a", "b");
+            bond.Tier = tier;
             return bond;
         }
 

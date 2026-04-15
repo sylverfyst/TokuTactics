@@ -3,24 +3,17 @@ using TokuTactics.Systems.ActionEconomy;
 namespace TokuTactics.Bricks.Combat
 {
     /// <summary>
-    /// Brick: Consumes the action from a unit's action budget.
-    /// NOTE: This brick mutates state (ActionBudget), which is acceptable for
-    /// budget consumption as it's a controlled side effect.
+    /// Consumes the action from a unit's action budget.
+    /// Returns false if the unit has already acted (guard check).
     /// </summary>
     public static class ConsumeActionBudget
     {
-        /// <summary>
-        /// Consumes the action from the budget.
-        /// </summary>
-        /// <param name="budget">The unit's action budget</param>
-        public static void Execute(ActionBudget budget)
+        public static bool Execute(ActionBudget budget)
         {
-            if (budget == null)
-            {
-                return;
-            }
-
-            budget.ConsumeAction();
+            if (budget == null) return false;
+            if (!budget.CanAct) return false;
+            budget.CanAct = false;
+            return true;
         }
     }
 }

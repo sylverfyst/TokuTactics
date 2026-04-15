@@ -37,7 +37,7 @@ namespace TokuTactics.Commands.Combat
             // Optional brick injections for testing
             Func<GridPosition, GridPosition, int, bool> validateRange = null,
             Func<ActionBudget, bool> checkBudget = null,
-            Action<ActionBudget> consumeAction = null)
+            Func<ActionBudget, bool> consumeAction = null)
         {
             // Initialize defaults if not provided
             validateRange ??= ValidateAttackRange.Execute;

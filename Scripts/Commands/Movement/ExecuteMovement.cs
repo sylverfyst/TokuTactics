@@ -35,7 +35,7 @@ namespace TokuTactics.Commands.Movement
             Func<GridPosition, Dictionary<GridPosition, int>, bool> validateRange = null,
             Func<ActionBudget, bool> checkBudget = null,
             Func<BattleGrid, string, GridPosition, bool> executeGridMove = null,
-            Action<ActionBudget> consumeMove = null)
+            Func<ActionBudget, bool> consumeMove = null)
         {
             // Initialize defaults if not provided
             validateRange ??= ValidateMovementRange.Execute;

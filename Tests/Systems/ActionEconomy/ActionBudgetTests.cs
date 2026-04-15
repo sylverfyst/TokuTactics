@@ -1,7 +1,13 @@
+using TokuTactics.Bricks.Combat;
+using TokuTactics.Bricks.Movement;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Systems.ActionEconomy;
 
 namespace TokuTactics.Tests.Systems.ActionEconomy
 {
+    /// <summary>
+    /// Integration tests: verify bricks operate correctly on the ActionBudget type.
+    /// </summary>
     public class ActionBudgetTests
     {
         // === Start Turn ===
@@ -10,7 +16,7 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         {
             var budget = new ActionBudget();
 
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
             Assert(budget.CanMove, "Should be able to move");
             Assert(budget.CanAct, "Should be able to act");
@@ -23,9 +29,9 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ConsumeMove_Works()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
-            bool result = budget.ConsumeMove();
+            bool result = ConsumeMoveBudget.Execute(budget);
 
             Assert(result, "Should succeed");
             Assert(!budget.CanMove, "Should not be able to move again");
@@ -35,10 +41,10 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ConsumeMove_Twice_Fails()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
-            budget.ConsumeMove();
+            StartBudgetTurn.Execute(budget);
+            ConsumeMoveBudget.Execute(budget);
 
-            bool result = budget.ConsumeMove();
+            bool result = ConsumeMoveBudget.Execute(budget);
 
             Assert(!result, "Second move should fail");
         }
@@ -46,9 +52,9 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ConsumeAction_Works()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
-            bool result = budget.ConsumeAction();
+            bool result = ConsumeActionBudget.Execute(budget);
 
             Assert(result, "Should succeed");
             Assert(!budget.CanAct, "Should not be able to act again");
@@ -58,10 +64,10 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ConsumeAction_Twice_Fails()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
-            budget.ConsumeAction();
+            StartBudgetTurn.Execute(budget);
+            ConsumeActionBudget.Execute(budget);
 
-            bool result = budget.ConsumeAction();
+            bool result = ConsumeActionBudget.Execute(budget);
 
             Assert(!result, "Second action should fail");
         }
@@ -71,9 +77,9 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ConsumeMorphAction_EndsTurn()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
-            bool result = budget.ConsumeMorphAction();
+            bool result = ConsumeMorphAction.Execute(budget);
 
             Assert(result, "Should succeed");
             Assert(!budget.CanMove, "Should not be able to move");
@@ -85,10 +91,10 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ConsumeMorphAction_FailsIfAlreadyActed()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
-            budget.ConsumeAction();
+            StartBudgetTurn.Execute(budget);
+            ConsumeActionBudget.Execute(budget);
 
-            bool result = budget.ConsumeMorphAction();
+            bool result = ConsumeMorphAction.Execute(budget);
 
             Assert(!result, "Should fail if action already consumed");
         }
@@ -98,11 +104,11 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ResetFromFormSwitch_RestoresMovementAndAction()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
-            budget.ConsumeMove();
-            budget.ConsumeAction();
+            StartBudgetTurn.Execute(budget);
+            ConsumeMoveBudget.Execute(budget);
+            ConsumeActionBudget.Execute(budget);
 
-            budget.ResetFromFormSwitch();
+            ResetBudgetFromFormSwitch.Execute(budget);
 
             Assert(budget.CanMove, "Should be able to move again");
             Assert(budget.CanAct, "Should be able to act again");
@@ -111,18 +117,18 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ResetFromFormSwitch_ChainableMultipleTimes()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
             // Chain: act, switch, act, switch, act
-            budget.ConsumeAction();
-            budget.ResetFromFormSwitch();
+            ConsumeActionBudget.Execute(budget);
+            ResetBudgetFromFormSwitch.Execute(budget);
             Assert(budget.CanAct, "Should be able to act after first switch");
 
-            budget.ConsumeAction();
-            budget.ResetFromFormSwitch();
+            ConsumeActionBudget.Execute(budget);
+            ResetBudgetFromFormSwitch.Execute(budget);
             Assert(budget.CanAct, "Should be able to act after second switch");
 
-            budget.ConsumeAction();
+            ConsumeActionBudget.Execute(budget);
             Assert(!budget.CanAct, "Should not be able to act without another switch");
         }
 
@@ -131,11 +137,11 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ApplyBondRefresh_GrantsAction()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
-            budget.ConsumeMove();
-            budget.ConsumeAction();
+            StartBudgetTurn.Execute(budget);
+            ConsumeMoveBudget.Execute(budget);
+            ConsumeActionBudget.Execute(budget);
 
-            bool result = budget.ApplyBondRefresh();
+            bool result = TokuTactics.Bricks.Shared.ApplyBondRefresh.Execute(budget);
 
             Assert(result, "Should succeed");
             Assert(budget.CanMove, "Should restore move");
@@ -146,12 +152,12 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void ApplyBondRefresh_OnlyOncePerRound()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
-            budget.ConsumeAction();
-            budget.ApplyBondRefresh();
-            budget.ConsumeAction();
+            StartBudgetTurn.Execute(budget);
+            ConsumeActionBudget.Execute(budget);
+            TokuTactics.Bricks.Shared.ApplyBondRefresh.Execute(budget);
+            ConsumeActionBudget.Execute(budget);
 
-            bool result = budget.ApplyBondRefresh();
+            bool result = TokuTactics.Bricks.Shared.ApplyBondRefresh.Execute(budget);
 
             Assert(!result, "Second refresh should fail");
         }
@@ -159,10 +165,10 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void GiveBondRefresh_OnlyOncePerRound()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
-            bool first = budget.GiveBondRefresh();
-            bool second = budget.GiveBondRefresh();
+            bool first = GiveBondRefresh.Execute(budget);
+            bool second = GiveBondRefresh.Execute(budget);
 
             Assert(first, "First give should succeed");
             Assert(!second, "Second give should fail");
@@ -171,11 +177,11 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void BondRefresh_ResetsOnNewTurn()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
-            budget.ApplyBondRefresh();
-            budget.GiveBondRefresh();
+            StartBudgetTurn.Execute(budget);
+            TokuTactics.Bricks.Shared.ApplyBondRefresh.Execute(budget);
+            GiveBondRefresh.Execute(budget);
 
-            budget.StartTurn(); // New turn
+            StartBudgetTurn.Execute(budget); // New turn
 
             Assert(!budget.HasReceivedBondRefresh, "Received flag should reset");
             Assert(!budget.HasUsedBondRefresh, "Used flag should reset");
@@ -186,9 +192,9 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void EndTurn_PreventsAllActions()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
-            budget.EndTurn();
+            EndBudgetTurn.Execute(budget);
 
             Assert(!budget.CanMove, "Should not move");
             Assert(!budget.CanAct, "Should not act");
@@ -201,25 +207,25 @@ namespace TokuTactics.Tests.Systems.ActionEconomy
         public void FullChainScenario_MoveAttackSwitchMoveAttackRefreshAct()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
 
             // Move and attack
-            Assert(budget.ConsumeMove(), "Move 1");
-            Assert(budget.ConsumeAction(), "Act 1");
+            Assert(ConsumeMoveBudget.Execute(budget), "Move 1");
+            Assert(ConsumeActionBudget.Execute(budget), "Act 1");
 
             // Form switch resets
-            budget.ResetFromFormSwitch();
-            Assert(budget.ConsumeMove(), "Move 2");
-            Assert(budget.ConsumeAction(), "Act 2");
+            ResetBudgetFromFormSwitch.Execute(budget);
+            Assert(ConsumeMoveBudget.Execute(budget), "Move 2");
+            Assert(ConsumeActionBudget.Execute(budget), "Act 2");
 
             // Another switch
-            budget.ResetFromFormSwitch();
-            Assert(budget.ConsumeMove(), "Move 3");
-            Assert(budget.ConsumeAction(), "Act 3");
+            ResetBudgetFromFormSwitch.Execute(budget);
+            Assert(ConsumeMoveBudget.Execute(budget), "Move 3");
+            Assert(ConsumeActionBudget.Execute(budget), "Act 3");
 
             // No more switches, but bond refresh
-            Assert(budget.ApplyBondRefresh(), "Bond refresh");
-            Assert(budget.ConsumeAction(), "Act 4 (from refresh)");
+            Assert(TokuTactics.Bricks.Shared.ApplyBondRefresh.Execute(budget), "Bond refresh");
+            Assert(ConsumeActionBudget.Execute(budget), "Act 4 (from refresh)");
 
             // Now truly done
             Assert(!budget.CanAct, "Should be out of actions");

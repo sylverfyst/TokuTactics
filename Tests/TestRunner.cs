@@ -78,6 +78,7 @@ namespace TokuTactics.Tests
             RunSuite("ApplyEffectOutputToHealth", Bricks.Shared.ApplyEffectOutputToHealthTests.Run, ref passed, ref failed);
             RunSuite("GetTargetHealthPool", Bricks.Shared.GetTargetHealthPoolTests.Run, ref passed, ref failed);
             RunSuite("CheckFormDeath", Bricks.Shared.CheckFormDeathTests.Run, ref passed, ref failed);
+            RunSuite("ActionBudgetBricks", Bricks.Shared.ActionBudgetBricksTests.Run, ref passed, ref failed);
 
             // BCO Bricks - Assist
             RunSuite("CheckAssistEligibility", Bricks.Assist.CheckAssistEligibilityTests.Run, ref passed, ref failed);

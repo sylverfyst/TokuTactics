@@ -1,4 +1,6 @@
 using System;
+using TokuTactics.Bricks.Combat;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Commands.Combat;
 using TokuTactics.Core.Grid;
 using TokuTactics.Systems.ActionEconomy;
@@ -47,7 +49,7 @@ namespace TokuTactics.Tests.Commands.Combat
         private static void Test_NoBudget_Fails()
         {
             var budget = MakeBudget();
-            budget.ConsumeAction();
+            ConsumeActionBudget.Execute(budget);
 
             var result = ExecuteAttack.Execute(
                 new GridPosition(5, 5), new GridPosition(5, 6), 3, budget,
@@ -98,7 +100,7 @@ namespace TokuTactics.Tests.Commands.Combat
         private static ActionBudget MakeBudget()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
             return budget;
         }
 

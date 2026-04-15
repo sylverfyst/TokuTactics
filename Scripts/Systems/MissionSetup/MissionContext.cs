@@ -6,6 +6,7 @@ using TokuTactics.Core.Types;
 using TokuTactics.Core.Stats;
 using TokuTactics.Core.Combat;
 using TokuTactics.Core.Events;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Entities.Enemies;
 using TokuTactics.Entities.Forms;
 using TokuTactics.Entities.Rangers;
@@ -222,7 +223,8 @@ namespace TokuTactics.Systems.MissionSetup
             foreach (var bondSave in campaignData.Bonds)
             {
                 var bond = bondTracker.GetBond(bondSave.RangerAId, bondSave.RangerBId);
-                bond.AddExperience(bondSave.Experience, bondTracker.TierThresholds);
+                bond.Experience = bondSave.Experience;
+                bond.Tier = Bricks.Bond.ResolveBondTier.Execute(bond.Experience, bondTracker.TierThresholds);
             }
 
             // === Step 7: Construct Systems ===
@@ -296,7 +298,7 @@ namespace TokuTactics.Systems.MissionSetup
         {
             if (ActionBudgets.ContainsKey(unitId))
             {
-                ActionBudgets[unitId].StartTurn();
+                StartBudgetTurn.Execute(ActionBudgets[unitId]);
             }
         }
 

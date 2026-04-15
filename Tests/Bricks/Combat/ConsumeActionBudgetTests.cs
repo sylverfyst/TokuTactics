@@ -1,3 +1,4 @@
+using TokuTactics.Bricks.Shared;
 using System;
 using TokuTactics.Bricks.Combat;
 using TokuTactics.Systems.ActionEconomy;
@@ -16,7 +17,7 @@ namespace TokuTactics.Tests.Bricks.Combat
         private static void Test_ConsumesAction()
         {
             var budget = new ActionBudget();
-            budget.StartTurn();
+            StartBudgetTurn.Execute(budget);
             ConsumeActionBudget.Execute(budget);
             Assert(budget.CanAct == false, "Action should be consumed");
         }
