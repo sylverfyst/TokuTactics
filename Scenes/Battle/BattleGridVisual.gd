@@ -207,6 +207,16 @@ func move_unit(unit_id: String, new_grid_pos: Vector2i):
 	else:
 		print("Warning: Cannot move unit ", unit_id, " - sprite not found")
 
+## Removes a unit sprite from the grid (e.g., when killed)
+func remove_unit(unit_id: String):
+	if unit_sprites.has(unit_id):
+		var sprite = unit_sprites[unit_id]
+		sprite.queue_free()
+		unit_sprites.erase(unit_id)
+		print("Removed unit sprite: ", unit_id)
+	else:
+		print("Warning: Cannot remove unit ", unit_id, " - sprite not found")
+
 ## Highlights the currently active unit
 func highlight_active_unit(unit_id: String):
 	if unit_sprites.has(unit_id):

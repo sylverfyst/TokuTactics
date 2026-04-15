@@ -90,6 +90,7 @@ namespace TokuTactics.Tests
             RunSuite("CalculateAssistDamageMultiplier", Bricks.Assist.CalculateAssistDamageMultiplierTests.Run, ref passed, ref failed);
             RunSuite("ResolveTier2Disruption", Bricks.Assist.ResolveTier2DisruptionTests.Run, ref passed, ref failed);
             RunSuite("CheckTier4RefreshEligibility", Bricks.Assist.CheckTier4RefreshEligibilityTests.Run, ref passed, ref failed);
+            RunSuite("MapRangerToAssistState", Bricks.Assist.MapRangerToAssistStateTests.Run, ref passed, ref failed);
 
             // BCO Bricks - Movement
             RunSuite("ValidateMovementRange", Bricks.Movement.ValidateMovementRangeTests.Run, ref passed, ref failed);

@@ -7,8 +7,10 @@ using TokuTactics.Systems.SaveLoad;
 using TokuTactics.Systems.PhaseManagement;
 using TokuTactics.Core.Events;
 using TokuTactics.Core.Grid;
+using TokuTactics.Commands.Combat;
 using TokuTactics.Commands.Movement;
 using TokuTactics.Commands.Phase;
+using TokuTactics.Core.ActionEconomy;
 
 namespace TokuTactics.Scenes.Battle
 {
@@ -258,9 +260,20 @@ namespace TokuTactics.Scenes.Battle
 				}
 				else if (unitAtPosition != null)
 				{
-					// Clicked another unit - TODO: attack or switch selection
-					GD.Print($"  TODO: Attack or switch to unit: {unitAtPosition}");
-					DeselectUnit();
+					// Clicked another unit — attack if enemy, switch selection if ranger
+					var isEnemy = Context.Enemies.Any(e => e.Id == unitAtPosition && e.IsAlive);
+					if (isEnemy)
+					{
+						TryAttackTarget(unitAtPosition, clickedPos);
+					}
+					else
+					{
+						// Clicked a ranger — switch selection
+						DeselectUnit();
+						var ranger = Context.Rangers.FirstOrDefault(r => r.Id == unitAtPosition);
+						if (ranger != null && ranger.IsAlive)
+							SelectUnit(unitAtPosition, clickedPos);
+					}
 				}
 				else
 				{
@@ -303,10 +316,13 @@ namespace TokuTactics.Scenes.Battle
 			// Highlight the selected unit
 			_gridVisual.Call("highlight_active_unit", unitId);
 
-			// Show movement range
-			ShowMovementRange(unitId, position);
+			// Show movement range (if can still move)
+			if (Context.ActionBudgets.TryGetValue(unitId, out var selectBudget) && selectBudget.CanMove)
+				ShowMovementRange(unitId, position);
 
-			// TODO: Show attack range
+			// Show attack range (if can act)
+			if (selectBudget != null && selectBudget.CanAct)
+				ShowAttackRange(unitId, position);
 		}
 
 		/// <summary>
@@ -434,9 +450,18 @@ namespace TokuTactics.Scenes.Battle
 		_previewedDestination = null;
 		_gridVisual.Call("clear_movement_preview");
 
-		// Clear movement overlay (keep unit selected for potential attack)
+		// Clear movement overlay
 		_gridVisual.Call("clear_highlights");
 		_currentMovementRange = null;
+
+		// Show attack range if ranger can still act
+		if (Context.ActionBudgets.TryGetValue(_selectedUnitId, out var moveBudget) && moveBudget.CanAct)
+		{
+			ShowAttackRange(_selectedUnitId, destination);
+		}
+
+		// Update turn indicator with current budget
+		UpdateTurnIndicator();
 	}
 
 	/// <summary>
@@ -480,6 +505,140 @@ namespace TokuTactics.Scenes.Battle
 
 		// Call GDScript to show path and outline destination
 		_gridVisual.Call("show_movement_preview", pathPositions);
+	}
+
+	// === Attack ===
+
+	/// <summary>
+	/// Show the attack range for the selected unit from a given position.
+	/// </summary>
+	private void ShowAttackRange(string unitId, GridPosition position)
+	{
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == unitId);
+		if (ranger == null) return;
+
+		var weapon = ranger.CurrentForm?.Data.WeaponA ?? ranger.BaseForm.Data.WeaponA;
+		if (weapon == null) return;
+
+		int range = weapon.Range;
+		GD.Print($"  Attack range: {range} (weapon: {weapon.Name})");
+
+		// Find all tiles in attack range
+		var attackTiles = new Godot.Collections.Array();
+		for (int col = 0; col < Context.Grid.Width; col++)
+		{
+			for (int row = 0; row < Context.Grid.Height; row++)
+			{
+				var tilePos = new GridPosition(col, row);
+				if (position.ManhattanDistance(tilePos) <= range && tilePos != position)
+				{
+					var tile = Context.Grid.GetTile(tilePos);
+					if (tile?.OccupantId != null)
+					{
+						// Only highlight tiles with enemies
+						var isEnemy = Context.Enemies.Any(e => e.Id == tile.OccupantId && e.IsAlive);
+						if (isEnemy)
+							attackTiles.Add(new Vector2I(col, row));
+					}
+				}
+			}
+		}
+
+		if (attackTiles.Count > 0)
+		{
+			_gridVisual.Call("highlight_tiles", attackTiles, "attack");
+			GD.Print($"  Targets in range: {attackTiles.Count}");
+		}
+	}
+
+	/// <summary>
+	/// Attempt to attack an enemy at the given position.
+	/// </summary>
+	private void TryAttackTarget(string targetId, GridPosition targetPos)
+	{
+		GD.Print($"[C#] TryAttackTarget: {_selectedUnitId} → {targetId}");
+
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == _selectedUnitId);
+		if (ranger == null) return;
+
+		var enemy = Context.Enemies.FirstOrDefault(e => e.Id == targetId);
+		if (enemy == null) return;
+
+		if (!Context.ActionBudgets.TryGetValue(_selectedUnitId, out var budget))
+		{
+			GD.Print("  No action budget");
+			return;
+		}
+
+		// Get weapon data
+		var weapon = ranger.CurrentForm?.Data.WeaponA ?? ranger.BaseForm.Data.WeaponA;
+		if (weapon == null)
+		{
+			GD.Print("  No weapon available");
+			return;
+		}
+
+		// Execute attack via command
+		var result = ExecuteAttack.Execute(
+			attackerPos: _selectedUnitPosition.Value,
+			targetPos: targetPos,
+			weaponRange: weapon.Range,
+			actionBudget: budget,
+			resolveCombat: () => Context.CombatResolver.ResolveRangerAttack(
+				ranger, enemy, weapon.BasePower, weapon.StatusEffect,
+				Context.BuildAssistStates())
+		);
+
+		if (!result.Success)
+		{
+			GD.Print($"  Attack failed: {result.FailureReason}");
+			// Keep selection intact — don't deselect on failed attack
+			return;
+		}
+
+		// === Handle combat results ===
+		var combat = result.CombatResult;
+		GD.Print($"[C#] Attack landed! Damage: {combat.TotalDamage}, Dodged: {combat.PrimaryDamage?.WasDodged}");
+
+		// Handle target death
+		if (combat.TargetDied)
+		{
+			GD.Print($"[C#] Enemy {targetId} defeated!");
+			_gridVisual.Call("remove_unit", targetId);
+
+			// Check win condition
+			Context.PhaseManager.CheckWinLoss();
+		}
+
+		if (combat.FormDied)
+			GD.Print($"[C#] Form destroyed: {combat.LostFormId}");
+
+		if (combat.MissionLost)
+			GD.Print("[C#] MISSION LOST — unmorphed ranger died");
+
+		// Clear highlights and deselect after successful attack
+		DeselectUnit();
+
+		// Update turn indicator with new budget state
+		UpdateTurnIndicator();
+
+		// Auto-end turn if no actions remain
+		if (budget.IsTurnComplete)
+		{
+			GD.Print("[C#] No actions remaining — auto-ending turn");
+			EndCurrentUnitTurn();
+		}
+	}
+
+	/// <summary>
+	/// Update the turn indicator UI with the active unit's current budget.
+	/// </summary>
+	private void UpdateTurnIndicator()
+	{
+		if (Context.PhaseManager.ActiveUnit == null) return;
+		string activeId = Context.PhaseManager.ActiveUnit.Participant.ParticipantId;
+		if (Context.ActionBudgets.TryGetValue(activeId, out var b))
+			_battleScene.CallDeferred("update_turn_indicator", activeId, b.CanMove, b.CanAct);
 	}
 
 	/// <summary>
