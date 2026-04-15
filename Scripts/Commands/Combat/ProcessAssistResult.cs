@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using TokuTactics.Systems.ActionEconomy;
-using TokuTactics.Systems.CombatResolution;
 
 namespace TokuTactics.Commands.Combat
 {

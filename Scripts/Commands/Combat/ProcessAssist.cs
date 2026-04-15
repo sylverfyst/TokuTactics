@@ -6,7 +6,6 @@ using TokuTactics.Entities.Enemies;
 using TokuTactics.Entities.Rangers;
 using TokuTactics.Systems.ActionEconomy;
 using TokuTactics.Systems.AssistResolution;
-using TokuTactics.Systems.CombatResolution;
 
 namespace TokuTactics.Commands.Combat
 {
@@ -24,8 +23,12 @@ namespace TokuTactics.Commands.Combat
             TypeChart typeChart,
             Random rng,
             TunableConstants constants,
-            BondTracker bondTracker)
+            BondTracker bondTracker,
+            Func<Enemy, int, EnemyDamageEvent> applyDamageToEnemy = null,
+            Action<Ranger, int> applyDamageToRanger = null)
         {
+            applyDamageToEnemy ??= ApplyDamageToEnemy.Execute;
+            applyDamageToRanger ??= ApplyDamageToRanger.Execute;
             var assistCombatResult = new AssistCombatResult
             {
                 AssisterId = assist.AssisterId,
@@ -61,7 +64,7 @@ namespace TokuTactics.Commands.Combat
             {
                 if (target is Enemy enemy)
                 {
-                    var evt = ApplyDamageToEnemy.Execute(enemy, damageResult.FinalDamage);
+                    var evt = applyDamageToEnemy(enemy, damageResult.FinalDamage);
                     if (evt.BecameAggressive)
                     {
                         processResult.AggressionTriggered = true;
@@ -71,7 +74,7 @@ namespace TokuTactics.Commands.Combat
                 }
                 else if (target is Ranger ranger)
                 {
-                    ApplyDamageToRanger.Execute(ranger, damageResult.FinalDamage);
+                    applyDamageToRanger(ranger, damageResult.FinalDamage);
                 }
             }
 

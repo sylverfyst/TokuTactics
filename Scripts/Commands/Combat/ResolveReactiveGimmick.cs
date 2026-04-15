@@ -11,11 +11,12 @@ namespace TokuTactics.Commands.Combat
     /// <summary>
     /// Command: Checks if a reactive gimmick should fire after a hit, and resolves it.
     /// Composes ValidateReactiveGimmick brick and delegates to GimmickResolver (injected).
-    /// Returns null if no gimmick fires.
+    /// Returns a declarative result — does NOT call enemy.OnGimmickActivated().
+    /// The orchestrator performs that mutation.
     /// </summary>
     public static class ResolveReactiveGimmick
     {
-        public static GimmickResolutionNS.GimmickResolution Execute(
+        public static ReactiveGimmickResult Execute(
             ICombatTarget target,
             bool wasDodged,
             BattleGrid grid,
@@ -46,10 +47,12 @@ namespace TokuTactics.Commands.Combat
                 enemy.Data.Gimmick.Behavior.Range,
                 rangerIds);
 
-            if (resolution.HasEffects)
-                enemy.OnGimmickActivated();
-
-            return resolution;
+            return new ReactiveGimmickResult
+            {
+                Resolution = resolution.HasEffects ? resolution : null,
+                GimmickActivated = resolution.HasEffects,
+                EnemyId = enemy.Id
+            };
         }
     }
 }

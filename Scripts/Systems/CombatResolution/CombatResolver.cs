@@ -135,10 +135,14 @@ namespace TokuTactics.Systems.CombatResolution
 
             // Step 7: Check reactive gimmick
             var rangerIds = CollectRangerIds();
-            var gimmick = ResolveReactiveGimmick.Execute(
+            var gimmickResult = ResolveReactiveGimmick.Execute(
                 target, damageResult.WasDodged, _grid, _gimmickResolver, rangerIds);
-            if (gimmick != null)
-                result.ReactiveGimmick = gimmick;
+            if (gimmickResult != null)
+            {
+                result.ReactiveGimmick = gimmickResult.Resolution;
+                if (gimmickResult.GimmickActivated)
+                    ((Enemy)target).OnGimmickActivated();
+            }
 
             // Step 8: Dispatch events
             _eventBus.Dispatch();
@@ -190,6 +194,7 @@ namespace TokuTactics.Systems.CombatResolution
 
         // === Private: Thin Helpers (delegation to bricks/commands + event publishing) ===
 
+        /// <summary>Routes damage to the correct brick based on target type. Orchestrator owns this dispatch.</summary>
         private void ApplyDamage(ICombatTarget target, int damage, CombatResult result)
         {
             if (target is Enemy enemy)
@@ -407,26 +412,4 @@ namespace TokuTactics.Systems.CombatResolution
         }
     }
 
-    /// <summary>
-    /// Result of a single assist within a combat action.
-    /// </summary>
-    public class AssistCombatResult
-    {
-        public string AssisterId { get; set; }
-        public int BondTier { get; set; }
-        public bool IsPairAttack { get; set; }
-        public DamageResult Damage { get; set; }
-
-        /// <summary>Whether a bond tier change occurred from this assist.</summary>
-        public BondTierChange BondTierChange { get; set; }
-
-        /// <summary>Whether tier 2 disrupted the assister's form.</summary>
-        public bool FormDisrupted { get; set; }
-
-        /// <summary>The form that was vacated by tier 2 disruption.</summary>
-        public string VacatedFormId { get; set; }
-
-        /// <summary>Whether tier 4 refresh is available from this assist.</summary>
-        public bool RefreshAvailable { get; set; }
-    }
 }
