@@ -72,9 +72,18 @@ namespace TokuTactics.Tests
             RunSuite("CalculateSameTypeBonus", Bricks.Combat.CalculateSameTypeBonusTests.Run, ref passed, ref failed);
             RunSuite("RollCrit", Bricks.Combat.RollCritTests.Run, ref passed, ref failed);
             RunSuite("ApplyComboScaling", Bricks.Combat.ApplyComboScalingTests.Run, ref passed, ref failed);
+            RunSuite("ApplyDamageToEnemy", Bricks.Combat.ApplyDamageToEnemyTests.Run, ref passed, ref failed);
+            RunSuite("ApplyDamageToRanger", Bricks.Combat.ApplyDamageToRangerTests.Run, ref passed, ref failed);
+            RunSuite("ApplyStatusEffect", Bricks.Combat.ApplyStatusEffectTests.Run, ref passed, ref failed);
+            RunSuite("CalculateStatusPotency", Bricks.Combat.CalculateStatusPotencyTests.Run, ref passed, ref failed);
+            RunSuite("ValidateReactiveGimmick", Bricks.Combat.ValidateReactiveGimmickTests.Run, ref passed, ref failed);
 
             // BCO Commands - Combat
             RunSuite("ResolveDamageRoll", Commands.Combat.ResolveDamageRollTests.Run, ref passed, ref failed);
+            RunSuite("ApplyWeaponStatus", Commands.Combat.ApplyWeaponStatusTests.Run, ref passed, ref failed);
+            RunSuite("ResolveTargetDeath", Commands.Combat.ResolveTargetDeathTests.Run, ref passed, ref failed);
+            RunSuite("ResolveReactiveGimmick", Commands.Combat.ResolveReactiveGimmickTests.Run, ref passed, ref failed);
+            RunSuite("ProcessAssist", Commands.Combat.ProcessAssistTests.Run, ref passed, ref failed);
 
             // BCO Commands - Phase
             RunSuite("ResolveWinLoss", Commands.Phase.ResolveWinLossTests.Run, ref passed, ref failed);
