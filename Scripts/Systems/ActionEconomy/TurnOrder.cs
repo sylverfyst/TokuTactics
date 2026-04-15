@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using TokuTactics.Bricks.Phase;
 
 namespace TokuTactics.Systems.ActionEconomy
 {
@@ -44,20 +45,8 @@ namespace TokuTactics.Systems.ActionEconomy
             _entries.Clear();
             _currentIndex = -1;
 
-            var sorted = participants
-                .Where(p => p.CanAct)
-                .OrderByDescending(p => p.Speed)
-                .ToList();
-
-            for (int i = 0; i < sorted.Count; i++)
-            {
-                _entries.Add(new TurnEntry
-                {
-                    Participant = sorted[i],
-                    OrderIndex = i,
-                    HasActed = false
-                });
-            }
+            var built = BuildTurnOrder.Execute(participants);
+            _entries.AddRange(built);
         }
 
         /// <summary>

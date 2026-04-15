@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TokuTactics.Bricks.Bond;
 
 namespace TokuTactics.Systems.ActionEconomy
 {
@@ -48,7 +49,7 @@ namespace TokuTactics.Systems.ActionEconomy
             int previousTier = bond.Tier;
 
             int baseExp = 10; // tunable
-            int scaledExp = (int)(baseExp * (1.0f + chaMultiplier * 0.1f));
+            int scaledExp = CalculateScaledBondExp.Execute(baseExp, chaMultiplier);
             bond.AddExperience(scaledExp, TierThresholds);
 
             if (bond.Tier > previousTier)
@@ -117,15 +118,7 @@ namespace TokuTactics.Systems.ActionEconomy
 
         private void UpdateTier(int[] thresholds)
         {
-            for (int i = thresholds.Length - 1; i >= 0; i--)
-            {
-                if (Experience >= thresholds[i])
-                {
-                    Tier = i + 1;
-                    return;
-                }
-            }
-            Tier = 0;
+            Tier = ResolveBondTier.Execute(Experience, thresholds);
         }
 
         /// <summary>
