@@ -523,24 +523,18 @@ namespace TokuTactics.Scenes.Battle
 		int range = weapon.Range;
 		GD.Print($"  Attack range: {range} (weapon: {weapon.Name})");
 
-		// Find all tiles in attack range
+		// Find enemy targets in attack range using grid neighbors
 		var attackTiles = new Godot.Collections.Array();
-		for (int col = 0; col < Context.Grid.Width; col++)
+		var tilesInRange = Context.Grid.GetTilesInRange(position, range);
+		foreach (var tilePos in tilesInRange)
 		{
-			for (int row = 0; row < Context.Grid.Height; row++)
+			if (tilePos == position) continue;
+			var tile = Context.Grid.GetTile(tilePos);
+			if (tile?.OccupantId != null)
 			{
-				var tilePos = new GridPosition(col, row);
-				if (position.ManhattanDistance(tilePos) <= range && tilePos != position)
-				{
-					var tile = Context.Grid.GetTile(tilePos);
-					if (tile?.OccupantId != null)
-					{
-						// Only highlight tiles with enemies
-						var isEnemy = Context.Enemies.Any(e => e.Id == tile.OccupantId && e.IsAlive);
-						if (isEnemy)
-							attackTiles.Add(new Vector2I(col, row));
-					}
-				}
+				var isEnemy = Context.Enemies.Any(e => e.Id == tile.OccupantId && e.IsAlive);
+				if (isEnemy)
+					attackTiles.Add(new Vector2I(tilePos.Col, tilePos.Row));
 			}
 		}
 
