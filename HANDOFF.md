@@ -1,7 +1,7 @@
 # Toku Tactics - Godot Integration Handoff
 
-**Date**: 2026-03-31
-**Status**: Presentation layer complete, builds successfully, ready for first playtest
+**Date**: 2026-04-04
+**Status**: Isometric tilemap implemented, BCO refactor complete, ready for C# integration
 
 ## What's Complete
 
@@ -17,7 +17,62 @@
 - **Main scene**: `BattleScene.tscn`
 - **Build status**: ✅ 0 errors, 0 warnings
 
-### ✅ Presentation Layer (Isometric)
+### ✅ BCO Refactor (NEW - 2026-04-04)
+Successfully refactored DamageCalculator into Brick/Command/Orchestrator pattern:
+
+**Bricks** (`Scripts/Bricks/Combat/`):
+- `CalculateBaseDamage.cs` - Pure STR vs DEF calculation
+- `RollDodge.cs` - LCK-based dodge chance
+- `RollCrit.cs` - LCK-based crit chance
+- `ApplyTypeMatchup.cs` - Type effectiveness multipliers
+- `CalculateSameTypeBonus.cs` - STAB bonus
+- `ApplyComboScaling.cs` - Combo multiplier
+
+**Command** (`Scripts/Commands/Combat/`):
+- `ResolveDamageRoll.cs` - Orchestrates all bricks with dependency injection
+- `ResolveDamageRollParams.cs` - Parameter contract
+
+**Integration**:
+- CombatResolver now uses ResolveDamageRoll command
+- MissionContext updated to construct dependencies
+- **Test Results**: 34 test suites pass (569 tests + 6 new BCO tests)
+- Zero regressions from refactor
+
+See `BCO_REFACTOR_PLAN.md` for architecture details.
+
+### ✅ Isometric Tilemap (NEW - 2026-04-05)
+Implemented professional isometric tileset for battle grid:
+
+**Assets**:
+- `Assets/Tilesets/practice_iso_tiles.png` - 14 colored isometric cubes (32×32px)
+- `Assets/Tilesets/IsometricTileSet.tres` - TileSet resource
+  - Tile shape: Diamond (isometric)
+  - Tile size: 32×16 (base size)
+  - Margin: 16×16
+  - Separation: 16×16
+  - Texture origin: (0, -8) per tile
+
+**Scenes**:
+- `Scenes/Battle/BattleGridVisual.tscn` - TileMapLayer with isometric grid
+- `Scenes/Battle/BattleGridVisual.gd` - Syncs with C# BattleGrid data
+  - Maps terrain types to tile colors
+  - Highlight system for movement/attack ranges
+  - Test pattern: 30×20 checkerboard (600 tiles)
+- `Scenes/Battle/BattleScene.tscn` - Main battle scene with camera
+- `Scenes/Battle/BattleScene.gd` - Camera controls (WASD, zoom with mouse wheel)
+
+**Display**:
+- Viewport: 1920×1080 fullscreen
+- Camera zoom: 0.8x default
+- Camera centered on grid
+
+**Features**:
+- Y-sort enabled for proper depth rendering
+- Click detection for tile selection
+- Placeholder for C# MissionContext integration
+- Ready to replace old GridView presentation code
+
+### ✅ Presentation Layer (Isometric - OLD)
 Created 4 presentation files in `Presentation/` directory:
 
 1. **BattleController.cs** (`Presentation/Battle/BattleController.cs`)
@@ -79,11 +134,10 @@ All presentation layer code now correctly uses the game logic APIs:
 3. Press **F5** (or click Play button) to run BattleScene
 
 ### Expected Behavior
-- **Isometric grid** renders with 120 diamond tiles (12×10 map)
-- **5 Rangers** on left side (colored: Red, Blue, Yellow, Green, Pink)
-- **4 Enemies** on right side (gray diamonds)
-- **Turn Display** (top-left): "Phase: Player Phase" + active unit
-- **Action Menu** (bottom-right): 3 buttons when Ranger's turn
+- **Isometric grid** renders with 600 diamond tiles (30×20 map)
+- **1920×1080 fullscreen viewport**
+- **Camera controls**: WASD/Arrow keys to pan, mouse wheel to zoom
+- **Note**: C# integration pending - no units rendered yet
 
 ### Game Flow
 1. **Round Start** → Tick cooldowns, status effects

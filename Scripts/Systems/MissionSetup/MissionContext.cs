@@ -39,7 +39,6 @@ namespace TokuTactics.Systems.MissionSetup
         public EventBus EventBus { get; }
         public BattleGrid Grid { get; }
         public TypeChart TypeChart { get; }
-        public DamageCalculator DamageCalc { get; }
 
         // === Entity Collections ===
 
@@ -71,7 +70,7 @@ namespace TokuTactics.Systems.MissionSetup
 
         private MissionContext(
             EventBus eventBus, BattleGrid grid, TypeChart typeChart,
-            DamageCalculator damageCalc, List<Ranger> rangers, List<Enemy> enemies,
+            List<Ranger> rangers, List<Enemy> enemies,
             FormPool formPool, BondTracker bondTracker,
             AssistResolver assistResolver, GimmickResolver gimmickResolver,
             CombatResolver combatResolver, PhaseManager phaseManager,
@@ -83,7 +82,6 @@ namespace TokuTactics.Systems.MissionSetup
             EventBus = eventBus;
             Grid = grid;
             TypeChart = typeChart;
-            DamageCalc = damageCalc;
             Rangers = rangers;
             Enemies = enemies;
             RangerLookup = rangers.ToDictionary(r => r.Id);
@@ -230,11 +228,12 @@ namespace TokuTactics.Systems.MissionSetup
             // === Step 7: Construct Systems ===
             var eventBus = new EventBus();
             var typeChart = TypeChartSetup.Create();
-            var damageCalc = new DamageCalculator(typeChart, rng ?? new Random());
+            var rngInstance = rng ?? new Random();
+            var tunableConstants = new Commands.Combat.TunableConstants();
             var assistResolver = new AssistResolver(grid, bondTracker);
             var gimmickResolver = new GimmickResolver(grid);
             var combatResolver = new CombatResolver(
-                grid, damageCalc, assistResolver, gimmickResolver, bondTracker, eventBus);
+                grid, typeChart, rngInstance, tunableConstants, assistResolver, gimmickResolver, bondTracker, eventBus);
             var phaseManager = new PhaseManager(eventBus, formPool);
             var loadoutController = new LoadoutController(formPool, eventBus);
 
@@ -246,7 +245,7 @@ namespace TokuTactics.Systems.MissionSetup
                 actionBudgets[enemy.Id] = new ActionBudget();
 
             return new MissionContext(
-                eventBus, grid, typeChart, damageCalc,
+                eventBus, grid, typeChart,
                 rangers, enemies, formPool, bondTracker,
                 assistResolver, gimmickResolver, combatResolver,
                 phaseManager, loadoutController, actionBudgets,

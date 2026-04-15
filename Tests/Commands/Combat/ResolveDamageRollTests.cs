@@ -86,10 +86,10 @@ namespace TokuTactics.Tests.Commands.Combat
             // Act
             var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
 
-            // Assert: (10 - 5) * 2 = 10 damage
+            // Assert: Max(1, 10 - (5 * 0.5)) * 2 = 7.5 * 2 = 15 damage
             Assert.IsFalse(result.WasDodged, "Should not dodge");
             Assert.IsFalse(result.WasCritical, "Should not crit");
-            Assert.AreEqual(10, result.FinalDamage, "Should deal 10 damage");
+            Assert.AreEqual(15, result.FinalDamage, "Should deal 15 damage");
             Assert.AreEqual(MatchupResult.Neutral, result.Matchup, "Should be neutral matchup");
         }
 
@@ -125,9 +125,9 @@ namespace TokuTactics.Tests.Commands.Combat
             // Act
             var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
 
-            // Assert: (10 - 5) * 2 = 10, then * 1.5 crit = 15
+            // Assert: 7.5 * 2 = 15, then * 1.5 crit = 22.5, rounded = 22 (banker's rounding)
             Assert.IsTrue(result.WasCritical, "Should crit");
-            Assert.AreEqual(15, result.FinalDamage, "Should deal 15 damage with crit");
+            Assert.AreEqual(22, result.FinalDamage, "Should deal 22 damage with crit");
         }
 
         private static void Test_WithSTAB_AppliesSameTypeBonus()
@@ -161,9 +161,9 @@ namespace TokuTactics.Tests.Commands.Combat
             // Act
             var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
 
-            // Assert: (10 - 5) * 2 = 10, then * 1.25 STAB = 12.5, rounded = 13
+            // Assert: 7.5 * 2 = 15, then * 1.25 STAB = 18.75, rounded = 19
             Assert.IsTrue(result.HadSameTypeBonus, "Should have STAB");
-            Assert.AreEqual(13, result.FinalDamage, "Should deal 13 damage with STAB (12.5 rounded up)");
+            Assert.AreEqual(19, result.FinalDamage, "Should deal 19 damage with STAB");
         }
 
         private static void Test_WithoutSTAB_SkipsSameTypeBonus()
@@ -197,9 +197,9 @@ namespace TokuTactics.Tests.Commands.Combat
             // Act
             var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
 
-            // Assert: (10 - 5) * 2 = 10, no STAB
+            // Assert: 7.5 * 2 = 15, no STAB
             Assert.IsFalse(result.HadSameTypeBonus, "Should not have STAB");
-            Assert.AreEqual(10, result.FinalDamage, "Should deal 10 damage without STAB");
+            Assert.AreEqual(15, result.FinalDamage, "Should deal 15 damage without STAB");
         }
 
         private static void Test_TypeMatchup_AppliesCorrectly()
@@ -232,10 +232,10 @@ namespace TokuTactics.Tests.Commands.Combat
             // Act
             var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
 
-            // Assert: (10 - 5) * 2 = 10, then * 1.5 type = 15
+            // Assert: 7.5 * 2 = 15, then * 1.5 type = 22.5, rounded = 22 (banker's rounding)
             Assert.AreEqual(MatchupResult.Strong, result.Matchup, "Should be strong matchup");
             Assert.AreEqual(1.5f, result.TypeMultiplier, "Type multiplier should be 1.5");
-            Assert.AreEqual(15, result.FinalDamage, "Should deal 15 damage with strong matchup");
+            Assert.AreEqual(22, result.FinalDamage, "Should deal 22 damage with strong matchup");
         }
 
         private static void Test_ComboScaling_AppliesCorrectly()
@@ -268,9 +268,9 @@ namespace TokuTactics.Tests.Commands.Combat
             // Act
             var result = ResolveDamageRoll.Execute(@params, typeChart, new Random(), constants);
 
-            // Assert: (10 - 5) * 2 = 10, then * 0.8 combo = 8
+            // Assert: 7.5 * 2 = 15, then * 0.8 combo = 12
             Assert.AreEqual(0.8f, result.ComboMultiplier, "Combo multiplier should be 0.8");
-            Assert.AreEqual(8, result.FinalDamage, "Should deal 8 damage with combo scaling");
+            Assert.AreEqual(12, result.FinalDamage, "Should deal 12 damage with combo scaling");
         }
 
         private static void Test_MinimumDamage_IsOne()

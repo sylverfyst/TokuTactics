@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3 uid="uid://d2k3l4m5n6o7p8q9"]
+
+[ext_resource type="TileSet" uid="uid://c8y7qxm5jvp2q" path="res://Assets/Tilesets/IsometricTileSet.tres" id="1_tileset"]
+[ext_resource type="Script" path="res://Scenes/Battle/BattleGridVisual.gd" id="2_script"]
+
+[node name="BattleGridVisual" type="TileMapLayer"]
+scale = Vector2(4, 4)
+tile_map_data = PackedByteArray()
+tile_set = ExtResource("1_tileset")
+script = ExtResource("2_script")
+y_sort_enabled = true

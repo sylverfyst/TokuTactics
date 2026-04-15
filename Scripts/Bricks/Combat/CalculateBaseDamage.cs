@@ -5,7 +5,7 @@ namespace TokuTactics.Bricks.Combat
     /// <summary>
     /// Calculates base damage from attacker strength vs defender defense and action power.
     /// Pure calculation with no side effects or external dependencies.
-    /// Formula: (attackerStr / defenderDef) * actionPower with minimum of 1.
+    /// Formula: (attackerStr - (defenderDef * 0.5)) * actionPower
     /// </summary>
     public static class CalculateBaseDamage
     {
@@ -15,14 +15,11 @@ namespace TokuTactics.Bricks.Combat
         /// <param name="attackerStr">Attacker's strength stat</param>
         /// <param name="defenderDef">Defender's defense stat</param>
         /// <param name="actionPower">Power multiplier of the action (default 1.0)</param>
-        /// <returns>Base damage as a float, minimum 1</returns>
+        /// <returns>Base damage as a float (can be 0 if actionPower is 0)</returns>
         public static float Execute(float attackerStr, float defenderDef, float actionPower)
         {
-            if (defenderDef <= 0f)
-                return Math.Max(1f, attackerStr * actionPower);
-
-            float baseDamage = (attackerStr / defenderDef) * actionPower;
-            return Math.Max(1f, baseDamage);
+            float baseDamage = Math.Max(1f, attackerStr - (defenderDef * 0.5f));
+            return baseDamage * actionPower;
         }
     }
 }

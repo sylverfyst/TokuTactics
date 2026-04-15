@@ -11,6 +11,7 @@ using TokuTactics.Entities.Rangers;
 using TokuTactics.Entities.Weapons;
 using TokuTactics.Systems.ActionEconomy;
 using TokuTactics.Systems.AssistResolution;
+using TokuTactics.Commands.Combat;
 using GimmickResolutionNS = TokuTactics.Systems.GimmickResolution;
 
 namespace TokuTactics.Systems.CombatResolution
@@ -21,7 +22,7 @@ namespace TokuTactics.Systems.CombatResolution
     /// 
     /// Flow for a Ranger attacking an enemy:
     /// 1. Resolve assists (AssistResolver → declarative)
-    /// 2. Calculate primary damage (DamageCalculator)
+    /// 2. Calculate primary damage (ResolveDamageRoll BCO command)
     /// 3. Apply primary damage to target
     /// 4. Apply weapon status effect to target
     /// 5. For each assist: calculate damage, apply damage, apply status, award bond XP
@@ -40,7 +41,9 @@ namespace TokuTactics.Systems.CombatResolution
     public class CombatResolver
     {
         private readonly BattleGrid _grid;
-        private readonly DamageCalculator _damageCalc;
+        private readonly TypeChart _typeChart;
+        private readonly Random _rng;
+        private readonly TunableConstants _constants;
         private readonly AssistResolver _assistResolver;
         private readonly GimmickResolutionNS.GimmickResolver _gimmickResolver;
         private readonly BondTracker _bondTracker;
@@ -51,14 +54,18 @@ namespace TokuTactics.Systems.CombatResolution
 
         public CombatResolver(
             BattleGrid grid,
-            DamageCalculator damageCalc,
+            TypeChart typeChart,
+            Random rng,
+            TunableConstants constants,
             AssistResolver assistResolver,
             GimmickResolutionNS.GimmickResolver gimmickResolver,
             BondTracker bondTracker,
             EventBus eventBus)
         {
             _grid = grid;
-            _damageCalc = damageCalc;
+            _typeChart = typeChart;
+            _rng = rng;
+            _constants = constants;
             _assistResolver = assistResolver;
             _gimmickResolver = gimmickResolver;
             _bondTracker = bondTracker;
@@ -88,9 +95,20 @@ namespace TokuTactics.Systems.CombatResolution
                 rangerStates);
 
             // === Step 2: Calculate Primary Damage ===
-            var damageInput = BuildDamageInput(attacker, target, actionPower,
-                attacker.ComboScaler.DamageMultiplier);
-            var damageResult = _damageCalc.Calculate(damageInput);
+            var damageParams = new ResolveDamageRollParams
+            {
+                AttackerStr = attacker.Stats.Get(StatType.STR),
+                AttackerLck = attacker.Stats.Get(StatType.LCK),
+                DefenderDef = target.Stats.Get(StatType.DEF),
+                DefenderLck = target.Stats.Get(StatType.LCK),
+                ActionPower = actionPower,
+                AttackType = attacker.DualType.FormType,
+                DefenderType = target.Type,
+                DefenderDualType = (target is Ranger rangerTarget) ? rangerTarget.DualType : null,
+                ComboMultiplier = attacker.ComboScaler.DamageMultiplier,
+                HasSameTypeBonus = attacker.DualType.IsSameType
+            };
+            var damageResult = ResolveDamageRoll.Execute(damageParams, _typeChart, _rng, _constants);
             result.PrimaryDamage = damageResult;
 
             // === Step 3: Apply Primary Damage ===
@@ -156,8 +174,20 @@ namespace TokuTactics.Systems.CombatResolution
             var result = new CombatResult { AttackerId = attacker.Id, TargetId = target.Id };
 
             // Calculate and apply damage
-            var damageInput = BuildDamageInput(attacker, target, actionPower, 1.0f);
-            var damageResult = _damageCalc.Calculate(damageInput);
+            var damageParams = new ResolveDamageRollParams
+            {
+                AttackerStr = attacker.Stats.Get(StatType.STR),
+                AttackerLck = 0, // Enemies don't crit in vertical slice
+                DefenderDef = target.Stats.Get(StatType.DEF),
+                DefenderLck = target.Stats.Get(StatType.LCK),
+                ActionPower = actionPower,
+                AttackType = ((ICombatTarget)attacker).Type,
+                DefenderType = target.Type,
+                DefenderDualType = (target is Ranger rangerTarget) ? rangerTarget.DualType : null,
+                ComboMultiplier = 1.0f,
+                HasSameTypeBonus = false // Enemies don't have dual typing
+            };
+            var damageResult = ResolveDamageRoll.Execute(damageParams, _typeChart, _rng, _constants);
             result.PrimaryDamage = damageResult;
 
             if (!damageResult.WasDodged)
@@ -274,19 +304,21 @@ namespace TokuTactics.Systems.CombatResolution
             };
 
             // Calculate assist damage using the assister's stats
-            var assistDamageInput = new DamageInput
+            var assistDamageParams = new ResolveDamageRollParams
             {
                 AttackerStr = assist.AssisterStr,
                 AttackerLck = 0, // Assists don't crit independently
-                AttackerDualType = assist.AssisterDualType,
                 DefenderDef = target.Stats.Get(StatType.DEF),
                 DefenderLck = target.Stats.Get(StatType.LCK),
-                DefenderType = target.Type,
                 ActionPower = assist.AssisterWeaponPower,
-                ComboMultiplier = assist.DamageMultiplier
+                AttackType = assist.AssisterDualType.FormType,
+                DefenderType = target.Type,
+                DefenderDualType = (target is Ranger rangerTarget) ? rangerTarget.DualType : null,
+                ComboMultiplier = assist.DamageMultiplier,
+                HasSameTypeBonus = assist.AssisterDualType.IsSameType
             };
 
-            var assistDamage = _damageCalc.Calculate(assistDamageInput);
+            var assistDamage = ResolveDamageRoll.Execute(assistDamageParams, _typeChart, _rng, _constants);
             assistResult.Damage = assistDamage;
 
             // Apply assist damage

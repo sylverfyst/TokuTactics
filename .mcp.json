@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "godot": {
+      "command": "/opt/homebrew/bin/node",
+      "args": ["/Users/bmetzger/code/godot_mcp/index.js"],
+      "env": {
+        "GODOT_BRIDGE_URL": "http://localhost:9880"
+      }
+    }
+  }
+}

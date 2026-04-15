@@ -36,14 +36,15 @@ namespace TokuTactics.Tests.Systems.CombatResolution
             Random rng = null)
         {
             var typeChart = MakeTypeChart();
-            var damageCalc = new DamageCalculator(typeChart, rng ?? DeterministicRng());
+            var constants = new TokuTactics.Commands.Combat.TunableConstants();
             bondTracker ??= new BondTracker();
             var assistResolver = new AssistResolver(grid, bondTracker);
             var gimmickResolver = new GimmickResolver(grid);
             var eventBus = new EventBus();
 
             return new CombatResolver(
-                grid, damageCalc, assistResolver, gimmickResolver, bondTracker, eventBus);
+                grid, typeChart, rng ?? DeterministicRng(), constants,
+                assistResolver, gimmickResolver, bondTracker, eventBus);
         }
 
         private Ranger MakeRanger(string id, ElementalType type = ElementalType.Blaze)
@@ -555,15 +556,18 @@ namespace TokuTactics.Tests.Systems.CombatResolution
             BattleGrid grid, BondTracker bondTracker = null)
         {
             var typeChart = MakeTypeChart();
-            var damageCalc = new DamageCalculator(typeChart, DeterministicRng());
-            damageCalc.BaseDodgeChance = 1.0f; // Guarantee dodge
+            var constants = new TokuTactics.Commands.Combat.TunableConstants
+            {
+                BaseDodge = 1.0f // Guarantee dodge
+            };
             bondTracker ??= new BondTracker();
             var assistResolver = new AssistResolver(grid, bondTracker);
             var gimmickResolver = new GimmickResolver(grid);
             var eventBus = new EventBus();
 
             return new CombatResolver(
-                grid, damageCalc, assistResolver, gimmickResolver, bondTracker, eventBus);
+                grid, typeChart, DeterministicRng(), constants,
+                assistResolver, gimmickResolver, bondTracker, eventBus);
         }
 
         public static void RunAll()

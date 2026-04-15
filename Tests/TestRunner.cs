@@ -55,6 +55,16 @@ namespace TokuTactics.Tests
             // Content
             RunSuite("Content", Data.ContentTests.RunAll, ref passed, ref failed);
 
+            // BCO Bricks - Phase
+            RunSuite("ValidateMissionActive", Bricks.Phase.ValidateMissionActiveTests.Run, ref passed, ref failed);
+            RunSuite("CheckRangerDefeat", Bricks.Phase.CheckRangerDefeatTests.Run, ref passed, ref failed);
+            RunSuite("CheckVictoryCondition", Bricks.Phase.CheckVictoryConditionTests.Run, ref passed, ref failed);
+            RunSuite("ApplyEffectOutputToHealth", Bricks.Phase.ApplyEffectOutputToHealthTests.Run, ref passed, ref failed);
+
+            // BCO Bricks - Round
+            RunSuite("GetTargetHealthPool", Bricks.Round.GetTargetHealthPoolTests.Run, ref passed, ref failed);
+            RunSuite("CheckFormDeath", Bricks.Round.CheckFormDeathTests.Run, ref passed, ref failed);
+
             // BCO Bricks - Combat
             RunSuite("CalculateBaseDamage", Bricks.Combat.CalculateBaseDamageTests.Run, ref passed, ref failed);
             RunSuite("RollDodge", Bricks.Combat.RollDodgeTests.Run, ref passed, ref failed);
@@ -65,6 +75,13 @@ namespace TokuTactics.Tests
 
             // BCO Commands - Combat
             RunSuite("ResolveDamageRoll", Commands.Combat.ResolveDamageRollTests.Run, ref passed, ref failed);
+
+            // BCO Commands - Phase
+            RunSuite("ResolveWinLoss", Commands.Phase.ResolveWinLossTests.Run, ref passed, ref failed);
+            RunSuite("ProcessRoundStatusEffects", Commands.Phase.ProcessRoundStatusEffectsTests.Run, ref passed, ref failed);
+            RunSuite("ExecuteRoundStart", Commands.Phase.ExecuteRoundStartTests.Run, ref passed, ref failed);
+            RunSuite("InitializeMission", Commands.Phase.InitializeMissionTests.Run, ref passed, ref failed);
+            RunSuite("ExecutePhaseTransition", Commands.Phase.ExecutePhaseTransitionTests.Run, ref passed, ref failed);
 
             Console.WriteLine($"\n=== Results: {passed} suites passed, {failed} suites failed ===");
 

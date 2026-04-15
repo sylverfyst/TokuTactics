@@ -53,7 +53,6 @@ namespace TokuTactics.Tests.Systems.MissionSetup
             Assert(ctx.EventBus != null, "EventBus should be created");
             Assert(ctx.Grid != null, "Grid should be created");
             Assert(ctx.TypeChart != null, "TypeChart should be created");
-            Assert(ctx.DamageCalc != null, "DamageCalc should be created");
             Assert(ctx.FormPool != null, "FormPool should be created");
             Assert(ctx.BondTracker != null, "BondTracker should be created");
             Assert(ctx.AssistResolver != null, "AssistResolver should be created");

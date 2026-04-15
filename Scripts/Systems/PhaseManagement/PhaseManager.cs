@@ -1,8 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using TokuTactics.Bricks.Phase;
+using TokuTactics.Commands.Phase;
 using TokuTactics.Core.Events;
-using TokuTactics.Core.StatusEffect;
 using TokuTactics.Entities.Enemies;
 using TokuTactics.Entities.Rangers;
 using TokuTactics.Systems.ActionEconomy;
@@ -44,27 +44,12 @@ namespace TokuTactics.Systems.PhaseManagement
     }
 
     /// <summary>
-    /// Orchestrates the ground combat turn loop.
-    /// 
+    /// Orchestrator: Manages the ground combat turn loop.
+    ///
+    /// Owns all state (mission state, phase state, turn orders, unit lists).
+    /// Delegates logic to Commands and Bricks. Publishes events based on command results.
+    ///
     /// Lifecycle: StartMission → (StartRound → PlayerPhase → EnemyPhase)* → Victory/Defeat
-    /// 
-    /// Within each phase, units act in SPD order via TurnOrder.
-    /// The phase manager does NOT execute combat — it manages flow and tells
-    /// the game layer whose turn it is. The game layer calls the CombatResolver
-    /// when the active unit attacks.
-    /// 
-    /// Round start processing:
-    /// - Tick form cooldowns (FormPool.ProcessTurn)
-    /// - Tick status effects on all units
-    /// - Reset combo chains
-    /// - Reset bond refresh flags (ActionBudget.StartTurn handles this)
-    /// 
-    /// Win/loss:
-    /// - Victory: all enemies in the defeat list are dead (bosses/monsters)
-    /// - Defeat: any unmorphed Ranger killed (flagged by CombatResolver.MissionLost)
-    /// 
-    /// The phase manager publishes events at each transition point so the
-    /// presentation layer can play phase banners, music changes, etc.
     /// </summary>
     public class PhaseManager
     {
@@ -108,7 +93,7 @@ namespace TokuTactics.Systems.PhaseManagement
 
         /// <summary>
         /// Initialize the mission with participating units.
-        /// 
+        ///
         /// defeatTargetIds: enemy IDs that must be killed to win (bosses/monsters).
         /// If empty, ALL enemies must be killed to win.
         /// </summary>
@@ -119,8 +104,9 @@ namespace TokuTactics.Systems.PhaseManagement
         {
             _rangers = rangers;
             _enemies = enemies;
-            _defeatTargetIds = defeatTargetIds ?? new HashSet<string>(
-                enemies.Select(e => e.Id));
+
+            var initResult = InitializeMission.Execute(enemies, defeatTargetIds);
+            _defeatTargetIds = initResult.DefeatTargetIds;
 
             MissionState = MissionState.Active;
             PhaseState = PhaseState.Idle;
@@ -134,25 +120,41 @@ namespace TokuTactics.Systems.PhaseManagement
         /// </summary>
         public bool StartRound()
         {
-            if (MissionState != MissionState.Active) return false;
+            if (!ValidateMissionActive.Execute(MissionState)) return false;
 
-            RoundNumber++;
+            var result = ExecuteRoundStart.Execute(
+                RoundNumber, _rangers, _enemies, _defeatTargetIds, _formPool);
 
-            // Tick form cooldowns and passive health regen
-            _formPool.ProcessTurn();
+            RoundNumber = result.NewRoundNumber;
 
-            // Tick status effects on all units
-            ProcessStatusEffects();
-
-            // Reset combo chains for all Rangers
-            foreach (var ranger in _rangers)
+            // Publish demorph/aggression events from status effect processing
+            foreach (var evt in result.DemorphEvents)
             {
-                if (ranger.IsAlive)
-                    ranger.ComboScaler.ResetChain();
+                _eventBus.Publish(new FormDiedEvent
+                {
+                    RangerId = evt.RangerId,
+                    FormId = evt.LostFormId
+                });
+                _eventBus.Publish(new RangerDemorphedEvent
+                {
+                    RangerId = evt.RangerId,
+                    LostFormId = evt.LostFormId
+                });
+            }
+            foreach (var evt in result.AggressionEvents)
+            {
+                _eventBus.Publish(new AggressionTriggeredEvent
+                {
+                    EnemyId = evt.EnemyId,
+                    HealthPercentage = evt.HealthPercentage
+                });
             }
 
-            // Check if status effect ticks killed anyone
-            if (CheckWinLoss()) return false;
+            if (result.MissionEnded)
+            {
+                ApplyEndState(result.EndState, result.FallenRangerId);
+                return false;
+            }
 
             _eventBus.Publish(new RoundStartedEvent { RoundNumber = RoundNumber });
             _eventBus.Dispatch();
@@ -168,7 +170,7 @@ namespace TokuTactics.Systems.PhaseManagement
         /// </summary>
         public bool StartPlayerPhase()
         {
-            if (MissionState != MissionState.Active) return false;
+            if (!ValidateMissionActive.Execute(MissionState)) return false;
 
             PhaseState = PhaseState.PlayerPhase;
 
@@ -186,7 +188,7 @@ namespace TokuTactics.Systems.PhaseManagement
         /// </summary>
         public bool StartEnemyPhase()
         {
-            if (MissionState != MissionState.Active) return false;
+            if (!ValidateMissionActive.Execute(MissionState)) return false;
 
             PhaseState = PhaseState.EnemyPhase;
 
@@ -206,7 +208,7 @@ namespace TokuTactics.Systems.PhaseManagement
         /// </summary>
         public TurnEntry AdvanceTurn()
         {
-            if (MissionState != MissionState.Active) return null;
+            if (!ValidateMissionActive.Execute(MissionState)) return null;
 
             var turnOrder = PhaseState == PhaseState.PlayerPhase
                 ? _playerTurnOrder
@@ -274,7 +276,7 @@ namespace TokuTactics.Systems.PhaseManagement
         /// </summary>
         public void NotifyMissionLost(string fallenRangerId)
         {
-            if (MissionState != MissionState.Active) return;
+            if (!ValidateMissionActive.Execute(MissionState)) return;
 
             FallenRangerId = fallenRangerId;
             MissionState = MissionState.Defeat;
@@ -295,142 +297,41 @@ namespace TokuTactics.Systems.PhaseManagement
         {
             if (MissionState != MissionState.Active) return true;
 
-            // Loss: any Ranger dead (unmorphed death)
-            foreach (var ranger in _rangers)
+            var result = ResolveWinLoss.Execute(_rangers, _enemies, _defeatTargetIds);
+
+            if (!result.Ended) return false;
+
+            ApplyEndState(result.EndState, result.FallenRangerId);
+            return true;
+        }
+
+        // === Internal: State Application ===
+
+        /// <summary>
+        /// Apply a mission end state from a command result. Publishes the appropriate event.
+        /// </summary>
+        private void ApplyEndState(MissionState endState, string fallenRangerId)
+        {
+            MissionState = endState;
+
+            if (endState == MissionState.Defeat)
             {
-                if (!ranger.IsAlive)
+                FallenRangerId = fallenRangerId;
+                _eventBus.Publish(new MissionDefeatEvent
                 {
-                    NotifyMissionLost(ranger.Id);
-                    return true;
-                }
+                    FallenRangerId = fallenRangerId,
+                    RoundsElapsed = RoundNumber
+                });
             }
-
-            // Win: all defeat targets are dead
-            bool allTargetsDefeated = _defeatTargetIds.All(
-                id => _enemies.Any(e => e.Id == id && !e.IsAlive));
-
-            if (allTargetsDefeated)
+            else if (endState == MissionState.Victory)
             {
-                MissionState = MissionState.Victory;
-
                 _eventBus.Publish(new MissionVictoryEvent
                 {
                     RoundsElapsed = RoundNumber
                 });
-                _eventBus.Dispatch();
-
-                return true;
             }
 
-            return false;
-        }
-
-        // === Internal: Status Effect Processing ===
-
-        /// <summary>
-        /// Process and tick status effects on all units.
-        /// 
-        /// Two-phase processing per unit:
-        /// 1. Process() — fire triggers (TurnStart), get per-tick outputs (DoT, HoT, stun)
-        /// 2. TickAndClean() — decrement durations, remove expired effects, get removal outputs
-        /// 
-        /// Currently applies: Damage (DoT), Healing (HoT).
-        /// NOT YET applied: StatModifiers (needs stat modifier layer),
-        /// PreventsAction/stun (needs action prevention check in AdvanceTurn),
-        /// MovementMultiplier (needs movement system integration).
-        /// These are vertical slice gaps — the EffectOutput fields exist,
-        /// the processing doesn't consume them yet.
-        /// </summary>
-        private void ProcessStatusEffects()
-        {
-            var context = new EffectContext { Phase = "turn_start" };
-
-            foreach (var ranger in _rangers)
-            {
-                if (!ranger.IsAlive) continue;
-
-                // Phase 1: Fire per-tick effects (DoT, HoT from TurnStartTrigger)
-                var tickOutputs = ranger.StatusEffects.Process(context);
-                ApplyEffectOutputsToRanger(ranger, tickOutputs);
-
-                // Phase 2: Tick durations and remove expired effects
-                var removalOutputs = ranger.StatusEffects.TickAndClean(context);
-                // Removal outputs undo stat mods etc. — not yet consumed.
-
-                // Check if DoT killed the current form — trigger demorph
-                if (ranger.MorphState == MorphState.Morphed
-                    && ranger.CurrentForm != null
-                    && !ranger.CurrentForm.Health.IsAlive)
-                {
-                    var lostForm = ranger.Demorph();
-
-                    _eventBus.Publish(new FormDiedEvent
-                    {
-                        RangerId = ranger.Id,
-                        FormId = lostForm?.Data.Id
-                    });
-                    _eventBus.Publish(new RangerDemorphedEvent
-                    {
-                        RangerId = ranger.Id,
-                        LostFormId = lostForm?.Data.Id
-                    });
-                }
-            }
-
-            foreach (var enemy in _enemies)
-            {
-                if (!enemy.IsAlive) continue;
-
-                // Phase 1: Fire per-tick effects
-                var tickOutputs = enemy.StatusEffects.Process(context);
-                ApplyEffectOutputsToEnemy(enemy, tickOutputs);
-
-                // Phase 2: Tick durations and remove expired
-                var removalOutputs = enemy.StatusEffects.TickAndClean(context);
-            }
-        }
-
-        private void ApplyEffectOutputsToRanger(Ranger ranger, List<EffectOutput> outputs)
-        {
-            foreach (var effect in outputs)
-            {
-                if (effect.Damage > 0)
-                {
-                    if (ranger.MorphState == MorphState.Morphed && ranger.CurrentForm != null)
-                        ranger.CurrentForm.Health.TakeDamage(effect.Damage);
-                    else
-                        ranger.UnmorphedHealth.TakeDamage(effect.Damage);
-                }
-                if (effect.Healing > 0)
-                {
-                    if (ranger.MorphState == MorphState.Morphed && ranger.CurrentForm != null)
-                        ranger.CurrentForm.Health.Heal(effect.Healing);
-                    else
-                        ranger.UnmorphedHealth.Heal(effect.Healing);
-                }
-            }
-        }
-
-        private void ApplyEffectOutputsToEnemy(Enemy enemy, List<EffectOutput> outputs)
-        {
-            foreach (var effect in outputs)
-            {
-                if (effect.Damage > 0)
-                {
-                    // Use Enemy.TakeDamage to respect aggression threshold
-                    var damageEvt = enemy.TakeDamage(effect.Damage);
-                    if (damageEvt.BecameAggressive)
-                    {
-                        _eventBus.Publish(new AggressionTriggeredEvent
-                        {
-                            EnemyId = enemy.Id,
-                            HealthPercentage = enemy.Health.Percentage
-                        });
-                    }
-                }
-                if (effect.Healing > 0)
-                    enemy.Health.Heal(effect.Healing);
-            }
+            _eventBus.Dispatch();
         }
     }
 }

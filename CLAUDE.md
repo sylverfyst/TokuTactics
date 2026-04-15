@@ -277,3 +277,42 @@ Full world bible at `toku-tactics-world-bible.md`. Key points:
 - **Content is code, not data files.** Catalogs are static methods returning configured objects. This will likely move to data files (JSON/YAML) later, but for now content IS code.
 - **Episode = template.** New episodes fill out EpisodeDefinition with content IDs. No new systems.
 - **Novel rule (Bryan's writing projects only, not this game):** Never write prose or narrative. Help with architecture, feedback, editing, and style adjustments only.
+
+## Godot MCP — Debug Bridge
+
+The project has a Godot MCP bridge that lets you interact with the running game directly.
+DebugBridge runs as an Autoload on http://localhost:9880 in debug builds.
+
+### Available tools (via MCP):
+
+**Observation:**
+- `mcp__godot__ping_godot` — check if the game is running
+- `mcp__godot__screenshot` — capture the viewport as a PNG image you can see
+- `mcp__godot__scene_tree` — get the full node hierarchy (names, types, positions, visibility)
+- `mcp__godot__inspect_node` — deep-inspect a node's properties, groups, script, signals
+- `mcp__godot__godot_logs` — get console output (GD.Print, errors, warnings, engine messages)
+
+**Interaction:**
+- `mcp__godot__input_action` — trigger an Input Map action (e.g. "ui_accept", "attack")
+- `mcp__godot__input_key` — simulate a key press (e.g. "SPACE", "ENTER")
+- `mcp__godot__input_mouse` — move mouse and/or click at viewport coordinates
+- `mcp__godot__call_method` — call any public method on any node by path with arguments
+- `mcp__godot__wait_frames` — wait N milliseconds for animations/transitions to complete
+
+### Usage guidelines:
+- When debugging visual or runtime issues, use screenshot + scene_tree + godot_logs to verify state directly instead of asking the user to describe what they see.
+- For integration testing, use call_method to invoke game logic and screenshot + inspect_node to verify results.
+- Always use wait_frames between actions that trigger animations or scene transitions.
+- Always check godot_logs after testing to catch warnings or errors.
+- Use ping_godot first to confirm the game is running before attempting other tools.
+- call_method is more reliable than input simulation for testing game logic — prefer it when possible.
+
+### Setup Status:
+- ✅ DebugBridge.cs copied to Scripts/Debug/
+- ✅ Registered as Autoload in project.godot
+- ✅ .mcp.json configured with absolute node path
+- ✅ Node.js 25.9.0 installed via Homebrew
+- ✅ MCP server dependencies installed (91 packages)
+- ⏳ **Next step:** Restart Claude Code to enable MCP tools
+
+After restarting Claude Code, the Godot MCP tools will be available with the `mcp__godot__` prefix.

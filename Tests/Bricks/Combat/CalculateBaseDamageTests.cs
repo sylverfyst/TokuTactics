@@ -29,7 +29,8 @@ namespace TokuTactics.Tests.Bricks.Combat
             float result = CalculateBaseDamage.Execute(attackerStr, defenderDef, actionPower);
 
             // Assert
-            Assert.AreEqual(40f, result, "STR 10 / DEF 5 * Power 20 = 40");
+            // Formula: Max(1, STR - (DEF * 0.5)) * Power = Max(1, 10 - 2.5) * 20 = 7.5 * 20 = 150
+            Assert.AreEqual(150f, result, "Max(1, STR 10 - DEF 5 * 0.5) * Power 20 = 150");
         }
 
         private static void Test_VeryHighStrength()
@@ -43,7 +44,8 @@ namespace TokuTactics.Tests.Bricks.Combat
             float result = CalculateBaseDamage.Execute(attackerStr, defenderDef, actionPower);
 
             // Assert
-            Assert.AreEqual(100f, result, "STR 100 / DEF 10 * Power 10 = 100");
+            // Formula: Max(1, 100 - (10 * 0.5)) * 10 = 95 * 10 = 950
+            Assert.AreEqual(950f, result, "Max(1, STR 100 - DEF 10 * 0.5) * Power 10 = 950");
         }
 
         private static void Test_VeryLowDefense()

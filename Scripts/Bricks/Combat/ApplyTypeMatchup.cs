@@ -44,14 +44,32 @@ namespace TokuTactics.Bricks.Combat
             if (defenderDualType != null)
             {
                 // Attacker (single type) → Ranger (dual type)
-                matchup = typeChart.ResolveDefensive(attackType, defenderDualType.Value);
+                // Check matchup against both defender types and sum
+                int vsRangerType = typeChart.CheckSingle(attackType, defenderDualType.Value.RangerType);
+                int vsFormType = typeChart.CheckSingle(attackType, defenderDualType.Value.FormType);
+                int total = vsRangerType + vsFormType;
+
+                matchup = total switch
+                {
+                    >= 2 => MatchupResult.DoubleStrong,
+                    1 => MatchupResult.Strong,
+                    0 => MatchupResult.Neutral,
+                    -1 => MatchupResult.Weak,
+                    <= -2 => MatchupResult.DoubleWeak
+                };
             }
             else
             {
                 // Attacker (single type) → Enemy (single type)
-                // Wrap single ElementalType in DualType for TypeChart.Resolve() compatibility
-                var attackerDual = DualType.Single(attackType);
-                matchup = typeChart.Resolve(attackerDual, defenderType);
+                // Check single type matchup (strong/weak/neutral only, no double-strength)
+                int strength = typeChart.CheckSingle(attackType, defenderType);
+
+                matchup = strength switch
+                {
+                    1 => MatchupResult.Strong,
+                    -1 => MatchupResult.Weak,
+                    _ => MatchupResult.Neutral
+                };
             }
 
             // Convert matchup to multiplier using constants
