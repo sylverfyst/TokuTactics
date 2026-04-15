@@ -1,42 +1,35 @@
 using System;
 using System.Collections.Generic;
+using TokuTactics.Bricks.Combat;
+using TokuTactics.Commands.Combat;
 using TokuTactics.Core.Grid;
 using TokuTactics.Core.Types;
 using TokuTactics.Core.Stats;
 using TokuTactics.Core.Combat;
 using TokuTactics.Core.Events;
 using TokuTactics.Entities.Enemies;
-using TokuTactics.Entities.Enemies.Gimmicks;
 using TokuTactics.Entities.Rangers;
 using TokuTactics.Entities.Weapons;
+using TokuTactics.Core.StatusEffect;
 using TokuTactics.Systems.ActionEconomy;
 using TokuTactics.Systems.AssistResolution;
-using TokuTactics.Commands.Combat;
 using GimmickResolutionNS = TokuTactics.Systems.GimmickResolution;
 
 namespace TokuTactics.Systems.CombatResolution
 {
     /// <summary>
-    /// Orchestrates a single attack action from start to finish.
-    /// This is the ONE system that mutates game state in response to combat.
-    /// 
-    /// Flow for a Ranger attacking an enemy:
-    /// 1. Resolve assists (AssistResolver → declarative)
-    /// 2. Calculate primary damage (ResolveDamageRoll BCO command)
-    /// 3. Apply primary damage to target
-    /// 4. Apply weapon status effect to target
-    /// 5. For each assist: calculate damage, apply damage, apply status, award bond XP
-    /// 6. Handle tier 2 form disruption (force assister to base form)
-    /// 7. Flag tier 4 action refresh opportunities
-    /// 8. Check for target death (enemy death / form death / unmorphed death)
-    /// 9. Check for reactive gimmick triggers (OnHit on damaged enemies)
-    /// 10. Publish events
-    /// 
-    /// The resolver returns a CombatResolution describing everything that happened.
-    /// The presentation layer reads this to play animations, show damage numbers, etc.
-    /// 
-    /// For enemy attacks, the flow is simpler: calculate damage, apply, check form/Ranger death.
-    /// No assists (enemies don't assist each other in the vertical slice).
+    /// Orchestrator: Coordinates a single attack action from start to finish.
+    /// Delegates logic to Commands and Bricks. Publishes events based on results.
+    ///
+    /// Flow for Ranger attack:
+    /// 1. Resolve assists (AssistResolver — declarative)
+    /// 2. Calculate primary damage (ResolveDamageRoll command)
+    /// 3. Apply damage (ApplyDamageToEnemy/Ranger bricks)
+    /// 4. Apply weapon status (ApplyWeaponStatus command)
+    /// 5. Process each assist (ProcessAssist command)
+    /// 6. Check target death (ResolveTargetDeath command)
+    /// 7. Check reactive gimmick (ResolveReactiveGimmick command)
+    /// 8. Dispatch events
     /// </summary>
     public class CombatResolver
     {
@@ -88,13 +81,13 @@ namespace TokuTactics.Systems.CombatResolution
             var attackerPos = _grid.GetUnitPosition(attacker.Id);
             if (!attackerPos.HasValue) return result;
 
-            // === Step 1: Resolve Assists (declarative, before damage) ===
+            // Step 1: Resolve assists (declarative, before damage)
             var assistResolution = _assistResolver.Resolve(
                 attacker.Id, attackerPos.Value,
                 attacker.ComboScaler.AssistDamageMultiplier,
                 rangerStates);
 
-            // === Step 2: Calculate Primary Damage ===
+            // Step 2: Calculate primary damage
             var damageParams = new ResolveDamageRollParams
             {
                 AttackerStr = attacker.Stats.Get(StatType.STR),
@@ -111,51 +104,43 @@ namespace TokuTactics.Systems.CombatResolution
             var damageResult = ResolveDamageRoll.Execute(damageParams, _typeChart, _rng, _constants);
             result.PrimaryDamage = damageResult;
 
-            // === Step 3: Apply Primary Damage ===
+            // Step 3-5: Apply damage, status, assists (only if hit landed)
             if (!damageResult.WasDodged)
             {
-                ApplyDamageToTarget(target, damageResult.FinalDamage, result);
-
-                // === Step 4: Apply Weapon Status Effect ===
-                if (weaponEffect != null)
-                {
-                    float potency = 1.0f + attacker.Stats.Get(StatType.MAG) * StatusPotencyMagScale;
-                    var effectInstance = weaponEffect.CreateInstance(potency);
-                    ApplyStatusToTarget(target, effectInstance, result);
-                }
-
+                ApplyDamage(target, damageResult.FinalDamage, result);
+                ApplyStatus(target, weaponEffect, attacker.Stats.Get(StatType.MAG), result);
                 PublishDamageEvent(attacker.Id, target.Id, damageResult);
 
-                // === Step 5: Process Each Assist ===
-                // Assists only fire if the primary attack landed.
-                // Skip assists against dead targets (primary already killed them).
+                // Process each assist (skip dead targets)
                 foreach (var assist in assistResolution.Assists)
                 {
-                    if (!IsTargetAlive(target)) break;
+                    if (!target.IsAlive) break;
 
-                    var assistResult = ProcessAssist(assist, target, result);
-                    result.AssistResults.Add(assistResult);
+                    var assistResult = ProcessAssist.Execute(
+                        assist, target, _typeChart, _rng, _constants, _bondTracker);
+
+                    result.AssistResults.Add(assistResult.AssistCombatResult);
+                    PublishAssistEvents(assistResult, assist);
+
+                    if (assistResult.AggressionTriggered)
+                    {
+                        result.AggressionTriggered = true;
+                        PublishAggressionEvent(assistResult.AggressionEnemyId, assistResult.AggressionHealthPercentage);
+                    }
                 }
             }
 
-            // === Step 6: Check Target Death ===
-            CheckTargetDeath(target, result);
+            // Step 6: Check target death
+            ApplyDeathResult(target, result);
 
-            // === Step 7: Check Reactive Gimmick (OnHit) ===
-            if (!damageResult.WasDodged && target is Enemy enemyWithGimmick
-                && enemyWithGimmick.IsAlive && !enemyWithGimmick.IsGimmickVoluntary)
-            {
-                var gimmickContext = enemyWithGimmick.BuildGimmickContext();
-                gimmickContext.WasJustHit = true;
-                if (enemyWithGimmick.ShouldGimmickActivate(gimmickContext))
-                {
-                    var gimmickResult = ResolveReactiveGimmick(enemyWithGimmick);
-                    if (gimmickResult != null)
-                        result.ReactiveGimmick = gimmickResult;
-                }
-            }
+            // Step 7: Check reactive gimmick
+            var rangerIds = CollectRangerIds();
+            var gimmick = ResolveReactiveGimmick.Execute(
+                target, damageResult.WasDodged, _grid, _gimmickResolver, rangerIds);
+            if (gimmick != null)
+                result.ReactiveGimmick = gimmick;
 
-            // === Step 8: Dispatch Events ===
+            // Step 8: Dispatch events
             _eventBus.Dispatch();
 
             return result;
@@ -173,11 +158,10 @@ namespace TokuTactics.Systems.CombatResolution
         {
             var result = new CombatResult { AttackerId = attacker.Id, TargetId = target.Id };
 
-            // Calculate and apply damage
             var damageParams = new ResolveDamageRollParams
             {
                 AttackerStr = attacker.Stats.Get(StatType.STR),
-                AttackerLck = 0, // Enemies don't crit in vertical slice
+                AttackerLck = 0,
                 DefenderDef = target.Stats.Get(StatType.DEF),
                 DefenderLck = target.Stats.Get(StatType.LCK),
                 ActionPower = actionPower,
@@ -185,165 +169,112 @@ namespace TokuTactics.Systems.CombatResolution
                 DefenderType = target.Type,
                 DefenderDualType = (target is Ranger rangerTarget) ? rangerTarget.DualType : null,
                 ComboMultiplier = 1.0f,
-                HasSameTypeBonus = false // Enemies don't have dual typing
+                HasSameTypeBonus = false
             };
             var damageResult = ResolveDamageRoll.Execute(damageParams, _typeChart, _rng, _constants);
             result.PrimaryDamage = damageResult;
 
             if (!damageResult.WasDodged)
             {
-                ApplyDamageToTarget(target, damageResult.FinalDamage, result);
-
-                if (weaponEffect != null)
-                {
-                    float potency = 1.0f + attacker.Stats.Get(StatType.MAG) * StatusPotencyMagScale;
-                    var effectInstance = weaponEffect.CreateInstance(potency);
-                    ApplyStatusToTarget(target, effectInstance, result);
-                }
-
+                ApplyDamage(target, damageResult.FinalDamage, result);
+                ApplyStatus(target, weaponEffect, attacker.Stats.Get(StatType.MAG), result);
                 PublishDamageEvent(attacker.Id, target.Id, damageResult);
             }
 
-            CheckTargetDeath(target, result);
+            ApplyDeathResult(target, result);
 
             _eventBus.Dispatch();
 
             return result;
         }
 
-        // === Internal: Helpers ===
+        // === Private: Thin Helpers (delegation to bricks/commands + event publishing) ===
 
-        private bool IsTargetAlive(ICombatTarget target)
-        {
-            if (target is Enemy enemy) return enemy.IsAlive;
-            if (target is Ranger ranger) return ranger.IsAlive;
-            return true;
-        }
-
-        // === Internal: Damage ===
-
-        private DamageInput BuildDamageInput(
-            ICombatActor attacker, ICombatTarget target,
-            float actionPower, float comboMultiplier)
-        {
-            var input = new DamageInput
-            {
-                AttackerStr = attacker.Stats.Get(StatType.STR),
-                AttackerLck = attacker.Stats.Get(StatType.LCK),
-                AttackerDualType = attacker.DualType,
-                DefenderDef = target.Stats.Get(StatType.DEF),
-                DefenderLck = target.Stats.Get(StatType.LCK),
-                DefenderType = target.Type,
-                ActionPower = actionPower,
-                ComboMultiplier = comboMultiplier
-            };
-
-            // Ranger targets have dual typing that affects matchup calculation.
-            // Enemies are single-typed — use the standard Resolve path.
-            if (target is Ranger rangerTarget)
-                input.DefenderDualType = rangerTarget.DualType;
-
-            return input;
-        }
-
-        private void ApplyDamageToTarget(ICombatTarget target, int damage, CombatResult result)
+        private void ApplyDamage(ICombatTarget target, int damage, CombatResult result)
         {
             if (target is Enemy enemy)
             {
-                var evt = enemy.TakeDamage(damage);
+                var evt = ApplyDamageToEnemy.Execute(enemy, damage);
                 if (evt.BecameAggressive)
                 {
                     result.AggressionTriggered = true;
-                    _eventBus.Publish(new AggressionTriggeredEvent
+                    PublishAggressionEvent(enemy.Id, enemy.Health.Percentage);
+                }
+            }
+            else if (target is Ranger ranger)
+            {
+                ApplyDamageToRanger.Execute(ranger, damage);
+            }
+        }
+
+        private void ApplyStatus(ICombatTarget target, StatusEffectTemplate weaponEffect, float casterMag, CombatResult result)
+        {
+            if (weaponEffect == null) return;
+
+            StatusEffectTracker tracker = target switch
+            {
+                Enemy e => e.StatusEffects,
+                Ranger r => r.StatusEffects,
+                _ => null
+            };
+            if (tracker == null) return;
+
+            var effectId = ApplyWeaponStatus.Execute(weaponEffect, tracker, casterMag, StatusPotencyMagScale);
+            result.StatusEffectsApplied.Add(effectId);
+        }
+
+        private void ApplyDeathResult(ICombatTarget target, CombatResult result)
+        {
+            var deathResult = ResolveTargetDeath.Execute(target);
+
+            if (deathResult.TargetDied)
+            {
+                result.TargetDied = true;
+
+                if (deathResult.EnemyTypeId != null)
+                {
+                    _eventBus.Publish(new EnemyDefeatedEvent
                     {
-                        EnemyId = enemy.Id,
-                        HealthPercentage = enemy.Health.Percentage
+                        EnemyId = deathResult.TargetId,
+                        EnemyTypeId = deathResult.EnemyTypeId,
+                        EnemyType = deathResult.EnemyType ?? ElementalType.Normal
+                    });
+                }
+
+                if (deathResult.MissionLost)
+                {
+                    result.MissionLost = true;
+                    _eventBus.Publish(new RangerDiedUnmorphedEvent
+                    {
+                        RangerId = deathResult.TargetId
                     });
                 }
             }
-            else if (target is Ranger ranger)
+
+            if (deathResult.FormDied)
             {
-                if (ranger.MorphState == MorphState.Morphed && ranger.CurrentForm != null)
+                // Perform mutation — demorph the ranger
+                var ranger = (Ranger)target;
+                var lostForm = ranger.Demorph();
+
+                result.FormDied = true;
+                result.LostFormId = lostForm?.Data.Id;
+
+                _eventBus.Publish(new FormDiedEvent
                 {
-                    ranger.CurrentForm.Health.TakeDamage(damage);
-                }
-                else
+                    RangerId = ranger.Id,
+                    FormId = lostForm?.Data.Id
+                });
+                _eventBus.Publish(new RangerDemorphedEvent
                 {
-                    ranger.UnmorphedHealth.TakeDamage(damage);
-                }
-            }
-        }
-
-        private void ApplyStatusToTarget(
-            ICombatTarget target,
-            Core.StatusEffect.StatusEffectInstance effect,
-            CombatResult result)
-        {
-            if (target is Enemy enemy)
-            {
-                enemy.StatusEffects.Apply(effect);
-                result.StatusEffectsApplied.Add(effect.Id);
-            }
-            else if (target is Ranger ranger)
-            {
-                ranger.StatusEffects.Apply(effect);
-                result.StatusEffectsApplied.Add(effect.Id);
-            }
-        }
-
-        // === Internal: Assists ===
-
-        private AssistCombatResult ProcessAssist(
-            AssistEffect assist, ICombatTarget target, CombatResult parentResult)
-        {
-            var assistResult = new AssistCombatResult
-            {
-                AssisterId = assist.AssisterId,
-                BondTier = assist.BondTier,
-                IsPairAttack = assist.IsPairAttack
-            };
-
-            // Calculate assist damage using the assister's stats
-            var assistDamageParams = new ResolveDamageRollParams
-            {
-                AttackerStr = assist.AssisterStr,
-                AttackerLck = 0, // Assists don't crit independently
-                DefenderDef = target.Stats.Get(StatType.DEF),
-                DefenderLck = target.Stats.Get(StatType.LCK),
-                ActionPower = assist.AssisterWeaponPower,
-                AttackType = assist.AssisterDualType.FormType,
-                DefenderType = target.Type,
-                DefenderDualType = (target is Ranger rangerTarget) ? rangerTarget.DualType : null,
-                ComboMultiplier = assist.DamageMultiplier,
-                HasSameTypeBonus = assist.AssisterDualType.IsSameType
-            };
-
-            var assistDamage = ResolveDamageRoll.Execute(assistDamageParams, _typeChart, _rng, _constants);
-            assistResult.Damage = assistDamage;
-
-            // Apply assist damage
-            if (!assistDamage.WasDodged)
-            {
-                ApplyDamageToTarget(target, assistDamage.FinalDamage, parentResult);
-            }
-
-            // Award bond experience
-            var tierChange = _bondTracker.AddAssistExperience(
-                assist.AttackerId, assist.AssisterId, assist.ChaMultiplier);
-
-            if (tierChange != null)
-            {
-                assistResult.BondTierChange = tierChange;
-                _eventBus.Publish(new BondTierReachedEvent
-                {
-                    RangerA = tierChange.RangerA,
-                    RangerB = tierChange.RangerB,
-                    OldTier = tierChange.OldTier,
-                    NewTier = tierChange.NewTier
+                    RangerId = ranger.Id,
+                    LostFormId = lostForm?.Data.Id
                 });
             }
+        }
 
-            // Publish assist event
+        private void PublishAssistEvents(ProcessAssistResult assistResult, AssistEffect assist)
+        {
             _eventBus.Publish(new AssistOccurredEvent
             {
                 ActorId = assist.AttackerId,
@@ -352,123 +283,35 @@ namespace TokuTactics.Systems.CombatResolution
                 TriggeredPairAttack = assist.IsPairAttack
             });
 
-            // Tier 2 form disruption
-            if (assist.ForceToBaseForm)
+            if (assistResult.BondTierChange != null)
             {
-                assistResult.FormDisrupted = true;
-                assistResult.VacatedFormId = assist.VacatedFormId;
-
-                _eventBus.Publish(new Tier2FormDisruptionEvent
+                _eventBus.Publish(new BondTierReachedEvent
                 {
-                    AssisterId = assist.AssisterId,
-                    DisruptedFormId = assist.VacatedFormId
+                    RangerA = assistResult.BondTierChange.RangerA,
+                    RangerB = assistResult.BondTierChange.RangerB,
+                    OldTier = assistResult.BondTierChange.OldTier,
+                    NewTier = assistResult.BondTierChange.NewTier
                 });
             }
 
-            // Tier 4 refresh opportunity
-            if (assist.CanRefreshPartner)
+            if (assistResult.AssistCombatResult.FormDisrupted)
             {
-                assistResult.RefreshAvailable = true;
+                _eventBus.Publish(new Tier2FormDisruptionEvent
+                {
+                    AssisterId = assist.AssisterId,
+                    DisruptedFormId = assistResult.AssistCombatResult.VacatedFormId
+                });
+            }
 
+            if (assistResult.AssistCombatResult.RefreshAvailable)
+            {
                 _eventBus.Publish(new BondRefreshEvent
                 {
                     GiverId = assist.AssisterId,
                     ReceiverId = assist.AttackerId
                 });
             }
-
-            return assistResult;
         }
-
-        // === Internal: Death Checks ===
-
-        private void CheckTargetDeath(ICombatTarget target, CombatResult result)
-        {
-            if (target is Enemy enemy && !enemy.IsAlive)
-            {
-                result.TargetDied = true;
-                _eventBus.Publish(new EnemyDefeatedEvent
-                {
-                    EnemyId = enemy.Id,
-                    EnemyTypeId = enemy.Data.Id,
-                    EnemyType = enemy.Data.Type ?? ElementalType.Normal
-                });
-            }
-            else if (target is Ranger ranger)
-            {
-                if (ranger.MorphState == MorphState.Morphed
-                    && ranger.CurrentForm != null
-                    && !ranger.CurrentForm.Health.IsAlive)
-                {
-                    // Form died — demorph
-                    var lostForm = ranger.Demorph();
-                    result.FormDied = true;
-                    result.LostFormId = lostForm?.Data.Id;
-
-                    _eventBus.Publish(new FormDiedEvent
-                    {
-                        RangerId = ranger.Id,
-                        FormId = lostForm?.Data.Id
-                    });
-                    _eventBus.Publish(new RangerDemorphedEvent
-                    {
-                        RangerId = ranger.Id,
-                        LostFormId = lostForm?.Data.Id
-                    });
-                }
-                else if (ranger.MorphState != MorphState.Morphed
-                    && !ranger.UnmorphedHealth.IsAlive)
-                {
-                    // Unmorphed Ranger died — mission lost
-                    result.TargetDied = true;
-                    result.MissionLost = true;
-
-                    _eventBus.Publish(new RangerDiedUnmorphedEvent
-                    {
-                        RangerId = ranger.Id
-                    });
-                }
-            }
-        }
-
-        // === Internal: Reactive Gimmick ===
-
-        private GimmickResolutionNS.GimmickResolution ResolveReactiveGimmick(Enemy enemy)
-        {
-            var ownerPos = _grid.GetUnitPosition(enemy.Id);
-            if (!ownerPos.HasValue) return null;
-
-            var context = enemy.BuildGimmickContext();
-            context.WasJustHit = true;
-
-            if (!enemy.ShouldGimmickActivate(context)) return null;
-
-            var output = enemy.GetGimmickOutput(context);
-            if (output == null || !output.HasEffect) return null;
-
-            // Find all Ranger IDs on the grid for targeting
-            var rangerIds = new HashSet<string>();
-            foreach (var unitId in _grid.AllUnitIds)
-            {
-                // In the full game, the combat state would provide a typed lookup.
-                // For the vertical slice, we check if the ID starts with "ranger_"
-                // This is a placeholder — the combat state layer will replace this.
-                if (unitId.StartsWith("ranger_"))
-                    rangerIds.Add(unitId);
-            }
-
-            var resolution = _gimmickResolver.Resolve(
-                ownerPos.Value, output,
-                enemy.Data.Gimmick.Behavior.Range,
-                rangerIds);
-
-            if (resolution.HasEffects)
-                enemy.OnGimmickActivated();
-
-            return resolution;
-        }
-
-        // === Internal: Events ===
 
         private void PublishDamageEvent(string attackerId, string targetId, DamageResult damage)
         {
@@ -484,9 +327,29 @@ namespace TokuTactics.Systems.CombatResolution
                 ComboMultiplier = damage.ComboMultiplier
             });
         }
+
+        private void PublishAggressionEvent(string enemyId, float healthPercentage)
+        {
+            _eventBus.Publish(new AggressionTriggeredEvent
+            {
+                EnemyId = enemyId,
+                HealthPercentage = healthPercentage
+            });
+        }
+
+        private HashSet<string> CollectRangerIds()
+        {
+            var rangerIds = new HashSet<string>();
+            foreach (var unitId in _grid.AllUnitIds)
+            {
+                if (unitId.StartsWith("ranger_"))
+                    rangerIds.Add(unitId);
+            }
+            return rangerIds;
+        }
     }
 
-    // === Resolution Output ===
+    // === Resolution Output (unchanged) ===
 
     /// <summary>
     /// Complete result of one attack action. Everything that happened,

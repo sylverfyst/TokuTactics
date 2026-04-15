@@ -15,5 +15,10 @@ namespace TokuTactics.Bricks.Combat
         // - CalculateSameTypeBonus
         // - RollCrit
         // - ApplyComboScaling
+        // - ApplyDamageToEnemy
+        // - ApplyDamageToRanger
+        // - ApplyStatusEffect
+        // - CalculateStatusPotency
+        // - ValidateReactiveGimmick
     }
 }
