@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using TokuTactics.Bricks.Phase;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Commands.Phase;
 using TokuTactics.Core.Events;
 using TokuTactics.Entities.Enemies;

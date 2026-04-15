@@ -1,9 +1,9 @@
 using System;
-using TokuTactics.Bricks.Phase;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Core.Health;
 using TokuTactics.Core.StatusEffect;
 
-namespace TokuTactics.Tests.Bricks.Phase
+namespace TokuTactics.Tests.Bricks.Shared
 {
     public static class ApplyEffectOutputToHealthTests
     {

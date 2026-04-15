@@ -1,4 +1,4 @@
-using GimmickResolutionNS = TokuTactics.Systems.GimmickResolution;
+using TokuTactics.Commands.Gimmick;
 
 namespace TokuTactics.Commands.Combat
 {
@@ -9,7 +9,7 @@ namespace TokuTactics.Commands.Combat
     public class ReactiveGimmickResult
     {
         /// <summary>The gimmick resolution (damage, status, displacement effects). Null if no gimmick fired.</summary>
-        public GimmickResolutionNS.GimmickResolution Resolution { get; set; }
+        public GimmickResolution Resolution { get; set; }
 
         /// <summary>Whether the gimmick was activated and the enemy should be notified.</summary>
         public bool GimmickActivated { get; set; }

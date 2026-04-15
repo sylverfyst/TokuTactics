@@ -4,7 +4,8 @@ using TokuTactics.Bricks.Combat;
 using TokuTactics.Core.Combat;
 using TokuTactics.Core.Grid;
 using TokuTactics.Entities.Enemies;
-using GimmickResolutionNS = TokuTactics.Systems.GimmickResolution;
+using TokuTactics.Commands.Gimmick;
+using TokuTactics.Systems.GimmickResolution;
 
 namespace TokuTactics.Commands.Combat
 {
@@ -20,7 +21,7 @@ namespace TokuTactics.Commands.Combat
             ICombatTarget target,
             bool wasDodged,
             BattleGrid grid,
-            GimmickResolutionNS.GimmickResolver gimmickResolver,
+            GimmickResolver gimmickResolver,
             HashSet<string> rangerIds,
             Func<ICombatTarget, bool, bool> validateGimmick = null)
         {

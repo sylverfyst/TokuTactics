@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using TokuTactics.Bricks.Phase;
-using TokuTactics.Bricks.Round;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Core.Health;
 using TokuTactics.Core.StatusEffect;
 using TokuTactics.Entities.Enemies;

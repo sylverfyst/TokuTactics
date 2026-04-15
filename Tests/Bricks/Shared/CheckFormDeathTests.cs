@@ -1,11 +1,11 @@
 using System;
-using TokuTactics.Bricks.Round;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Core.Stats;
 using TokuTactics.Core.Types;
 using TokuTactics.Data.Content;
 using TokuTactics.Entities.Rangers;
 
-namespace TokuTactics.Tests.Bricks.Round
+namespace TokuTactics.Tests.Bricks.Shared
 {
     public static class CheckFormDeathTests
     {

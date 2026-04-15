@@ -1,6 +1,6 @@
 using TokuTactics.Entities.Rangers;
 
-namespace TokuTactics.Bricks.Round
+namespace TokuTactics.Bricks.Shared
 {
     /// <summary>
     /// Returns true if the ranger is morphed and their current form's health is dead.

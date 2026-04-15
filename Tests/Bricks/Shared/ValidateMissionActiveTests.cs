@@ -1,8 +1,8 @@
 using System;
-using TokuTactics.Bricks.Phase;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Systems.PhaseManagement;
 
-namespace TokuTactics.Tests.Bricks.Phase
+namespace TokuTactics.Tests.Bricks.Shared
 {
     public static class ValidateMissionActiveTests
     {
