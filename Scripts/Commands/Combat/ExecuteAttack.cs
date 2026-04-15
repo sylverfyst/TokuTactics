@@ -1,7 +1,7 @@
 using System;
 using TokuTactics.Bricks.Combat;
 using TokuTactics.Core.Grid;
-using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.CombatResolution;
 
 namespace TokuTactics.Commands.Combat

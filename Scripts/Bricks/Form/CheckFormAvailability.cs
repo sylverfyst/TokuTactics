@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using TokuTactics.Core.Cooldown;
-using TokuTactics.Systems.FormManagement;
+using TokuTactics.Core.Form;
 
 namespace TokuTactics.Bricks.Form
 {

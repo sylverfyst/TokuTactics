@@ -5,44 +5,14 @@ using TokuTactics.Commands.Phase;
 using TokuTactics.Core.Events;
 using TokuTactics.Entities.Enemies;
 using TokuTactics.Entities.Rangers;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.Form;
+using TokuTactics.Core.Phase;
 using TokuTactics.Systems.FormManagement;
 
 namespace TokuTactics.Systems.PhaseManagement
 {
-    /// <summary>
-    /// Mission state machine tracking the overall lifecycle.
-    /// </summary>
-    public enum MissionState
-    {
-        /// <summary>Mission not yet started.</summary>
-        NotStarted,
-
-        /// <summary>Ground combat is active.</summary>
-        Active,
-
-        /// <summary>All required enemies defeated.</summary>
-        Victory,
-
-        /// <summary>An unmorphed Ranger was killed.</summary>
-        Defeat
-    }
-
-    /// <summary>
-    /// Where we are within a round.
-    /// </summary>
-    public enum PhaseState
-    {
-        /// <summary>Between rounds or before first round.</summary>
-        Idle,
-
-        /// <summary>Player units are acting in SPD order.</summary>
-        PlayerPhase,
-
-        /// <summary>Enemy units are acting in SPD order.</summary>
-        EnemyPhase
-    }
-
     /// <summary>
     /// Orchestrator: Manages the ground combat turn loop.
     ///

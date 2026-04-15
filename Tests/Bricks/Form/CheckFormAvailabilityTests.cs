@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TokuTactics.Bricks.Form;
 using TokuTactics.Core.Cooldown;
+using TokuTactics.Core.Form;
 using TokuTactics.Systems.FormManagement;
 
 namespace TokuTactics.Tests.Bricks.Form

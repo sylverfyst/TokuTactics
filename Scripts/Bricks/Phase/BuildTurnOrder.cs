@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.ActionEconomy;
 
 namespace TokuTactics.Bricks.Phase
 {

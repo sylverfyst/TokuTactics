@@ -1,4 +1,4 @@
-namespace TokuTactics.Systems.ActionEconomy
+namespace TokuTactics.Core.ActionEconomy
 {
     /// <summary>
     /// Type: Pure data shape for a unit's per-turn action economy.

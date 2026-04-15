@@ -1,5 +1,5 @@
 using TokuTactics.Core.Combat;
-using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.ActionEconomy;
 
 namespace TokuTactics.Commands.Combat
 {

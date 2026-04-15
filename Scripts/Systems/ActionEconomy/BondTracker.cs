@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TokuTactics.Bricks.Bond;
+using TokuTactics.Core.ActionEconomy;
 
 namespace TokuTactics.Systems.ActionEconomy
 {
@@ -93,46 +94,4 @@ namespace TokuTactics.Systems.ActionEconomy
         }
     }
 
-    /// <summary>
-    /// The state of a bond between two specific Rangers.
-    /// </summary>
-    /// <summary>
-    /// Type: Pure data shape for the bond between two Rangers.
-    /// Operations on this type are performed by bricks and the BondTracker orchestrator.
-    /// </summary>
-    public class BondState
-    {
-        public string RangerA { get; set; }
-        public string RangerB { get; set; }
-        public int Experience { get; set; }
-        public int Tier { get; set; }
-
-        public BondState(string rangerA, string rangerB)
-        {
-            RangerA = rangerA;
-            RangerB = rangerB;
-        }
-
-        /// <summary>Check if this bond involves a specific Ranger.</summary>
-        public bool Involves(string rangerId) => RangerA == rangerId || RangerB == rangerId;
-
-        /// <summary>Get the other Ranger in this bond pair.</summary>
-        public string GetPartner(string rangerId)
-        {
-            if (RangerA == rangerId) return RangerB;
-            if (RangerB == rangerId) return RangerA;
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Event when a bond reaches a new tier.
-    /// </summary>
-    public class BondTierChange
-    {
-        public string RangerA { get; set; }
-        public string RangerB { get; set; }
-        public int OldTier { get; set; }
-        public int NewTier { get; set; }
-    }
 }

@@ -1,4 +1,4 @@
-using TokuTactics.Systems.PhaseManagement;
+using TokuTactics.Core.Phase;
 
 namespace TokuTactics.Bricks.Shared
 {

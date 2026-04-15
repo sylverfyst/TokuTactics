@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TokuTactics.Bricks.Phase;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
 
 namespace TokuTactics.Tests.Bricks.Phase

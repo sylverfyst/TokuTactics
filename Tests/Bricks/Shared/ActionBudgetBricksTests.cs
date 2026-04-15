@@ -1,5 +1,6 @@
 using System;
 using TokuTactics.Bricks.Shared;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
 
 namespace TokuTactics.Tests.Bricks.Shared

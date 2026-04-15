@@ -3,6 +3,7 @@ using System.Linq;
 using TokuTactics.Bricks.Form;
 using TokuTactics.Commands.Form;
 using TokuTactics.Core.Cooldown;
+using TokuTactics.Core.Form;
 using TokuTactics.Entities.Forms;
 
 namespace TokuTactics.Systems.FormManagement
@@ -193,20 +194,4 @@ namespace TokuTactics.Systems.FormManagement
         }
     }
 
-    public enum FormAvailability
-    {
-        Available,
-        NotEquipped,
-        OnCooldown,
-        OccupiedByOther
-    }
-
-    public class FormPoolEntry
-    {
-        public FormData FormData { get; set; }
-        public bool IsEquipped { get; set; }
-        public bool IsOnCooldown { get; set; }
-        public int CooldownRemaining { get; set; }
-        public string OccupiedByRangerId { get; set; }
-    }
 }

@@ -1,4 +1,4 @@
-using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.ActionEconomy;
 
 namespace TokuTactics.Bricks.Combat
 {

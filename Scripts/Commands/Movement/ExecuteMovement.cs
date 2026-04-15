@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using TokuTactics.Bricks.Movement;
 using TokuTactics.Core.Grid;
-using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.ActionEconomy;
 
 namespace TokuTactics.Commands.Movement
 {

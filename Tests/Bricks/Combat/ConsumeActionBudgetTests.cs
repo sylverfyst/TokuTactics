@@ -1,6 +1,7 @@
 using TokuTactics.Bricks.Shared;
 using System;
 using TokuTactics.Bricks.Combat;
+using TokuTactics.Core.ActionEconomy;
 using TokuTactics.Systems.ActionEconomy;
 
 namespace TokuTactics.Tests.Bricks.Combat

@@ -1,7 +1,8 @@
+using TokuTactics.Systems.PhaseManagement;
 using System;
 using System.Collections.Generic;
-using TokuTactics.Systems.PhaseManagement;
-using TokuTactics.Systems.ActionEconomy;
+using TokuTactics.Core.Phase;
+using TokuTactics.Core.ActionEconomy;
 
 namespace TokuTactics.Commands.Phase
 {
