@@ -55,6 +55,11 @@ namespace TokuTactics.Tests
             // Content
             RunSuite("Content", Data.ContentTests.RunAll, ref passed, ref failed);
 
+            // BCO Bricks - Form
+            RunSuite("CheckFormAvailability", Bricks.Form.CheckFormAvailabilityTests.Run, ref passed, ref failed);
+            RunSuite("ValidateFormEquip", Bricks.Form.ValidateFormEquipTests.Run, ref passed, ref failed);
+            RunSuite("TickCooldownWithRegen", Bricks.Form.TickCooldownWithRegenTests.Run, ref passed, ref failed);
+
             // BCO Bricks - Spatial
             RunSuite("FindUnitsInRange", Bricks.Spatial.FindUnitsInRangeTests.Run, ref passed, ref failed);
             RunSuite("CalculateDisplacement", Bricks.Spatial.CalculateDisplacementTests.Run, ref passed, ref failed);
@@ -104,6 +109,9 @@ namespace TokuTactics.Tests
             RunSuite("ResolveTargetDeath", Commands.Combat.ResolveTargetDeathTests.Run, ref passed, ref failed);
             RunSuite("ResolveReactiveGimmick", Commands.Combat.ResolveReactiveGimmickTests.Run, ref passed, ref failed);
             RunSuite("ProcessAssist", Commands.Combat.ProcessAssistTests.Run, ref passed, ref failed);
+
+            // BCO Commands - Form
+            RunSuite("ProcessFormPoolTurn", Commands.Form.ProcessFormPoolTurnTests.Run, ref passed, ref failed);
 
             // BCO Commands - Gimmick
             RunSuite("ResolveGimmickEffects", Commands.Gimmick.ResolveGimmickEffectsTests.Run, ref passed, ref failed);
