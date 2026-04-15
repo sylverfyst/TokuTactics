@@ -6,6 +6,7 @@ using TokuTactics.Core.Types;
 using TokuTactics.Core.Stats;
 using TokuTactics.Core.Combat;
 using TokuTactics.Core.Events;
+using TokuTactics.Bricks.Assist;
 using TokuTactics.Bricks.Shared;
 using TokuTactics.Entities.Enemies;
 using TokuTactics.Entities.Forms;
@@ -270,25 +271,8 @@ namespace TokuTactics.Systems.MissionSetup
 
             foreach (var ranger in Rangers)
             {
-                var state = new AssistCandidateState
-                {
-                    IsMorphed = ranger.MorphState == MorphState.Morphed,
-                    CurrentFormId = ranger.CurrentForm?.Data.Id,
-                    BaseFormId = ranger.BaseForm.Data.Id,
-                    IsInBaseForm = ranger.CurrentForm == ranger.BaseForm,
-                    WeaponBasePower = ranger.CurrentForm?.Data.WeaponA?.BasePower ?? 0,
-                    Str = ranger.Stats.Get(StatType.STR),
-                    Cha = ranger.Stats.Get(StatType.CHA),
-                    AssisterDualType = ranger.DualType
-                };
-
-                if (ActionBudgets.ContainsKey(ranger.Id))
-                {
-                    state.HasUsedBondRefresh = ActionBudgets[ranger.Id].HasUsedBondRefresh;
-                    state.HasReceivedBondRefresh = ActionBudgets[ranger.Id].HasReceivedBondRefresh;
-                }
-
-                states[ranger.Id] = state;
+                ActionBudgets.TryGetValue(ranger.Id, out var budget);
+                states[ranger.Id] = MapRangerToAssistState.Execute(ranger, budget);
             }
 
             return states;

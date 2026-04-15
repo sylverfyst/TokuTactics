@@ -7,4 +7,5 @@ namespace TokuTactics.Bricks.Assist
     // CalculateAssistDamageMultiplier - Bond tier bonus × combo scaling → damage multiplier
     // ResolveTier2Disruption - Determines if tier 2 forces base form swap, returns vacated form ID
     // CheckTier4RefreshEligibility - Checks if tier 4 action refresh is available
+    // MapRangerToAssistState - Maps a Ranger + ActionBudget to AssistCandidateState
 }
