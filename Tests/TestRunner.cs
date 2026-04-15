@@ -55,6 +55,10 @@ namespace TokuTactics.Tests
             // Content
             RunSuite("Content", Data.ContentTests.RunAll, ref passed, ref failed);
 
+            // BCO Bricks - Bond
+            RunSuite("CalculateScaledBondExp", Bricks.Bond.CalculateScaledBondExpTests.Run, ref passed, ref failed);
+            RunSuite("ResolveBondTier", Bricks.Bond.ResolveBondTierTests.Run, ref passed, ref failed);
+
             // BCO Bricks - Loadout
             RunSuite("ValidateMorphRequest", Bricks.Loadout.ValidateMorphRequestTests.Run, ref passed, ref failed);
             RunSuite("ValidateLoadoutSubmission", Bricks.Loadout.ValidateLoadoutSubmissionTests.Run, ref passed, ref failed);
@@ -90,6 +94,7 @@ namespace TokuTactics.Tests
             // BCO Bricks - Phase
             RunSuite("CheckRangerDefeat", Bricks.Phase.CheckRangerDefeatTests.Run, ref passed, ref failed);
             RunSuite("CheckVictoryCondition", Bricks.Phase.CheckVictoryConditionTests.Run, ref passed, ref failed);
+            RunSuite("BuildTurnOrder", Bricks.Phase.BuildTurnOrderTests.Run, ref passed, ref failed);
 
             // BCO Bricks - Combat
             RunSuite("CalculateBaseDamage", Bricks.Combat.CalculateBaseDamageTests.Run, ref passed, ref failed);
