@@ -1,7 +1,7 @@
 # Toku Tactics — Handoff
 
 **Date**: 2026-04-15
-**Status**: Godot integration working, PhaseManager BCO refactor complete, full player phase loop verified
+**Status**: BCO migration complete, ready for gameplay features
 
 ## Current State
 
@@ -12,91 +12,55 @@ The game runs in Godot 4.6.1. Isometric battle grid (12x10), 5 Rangers vs 7 enem
 - End turn with Space/Enter
 - Enemy phase: all 7 enemies auto-skip (no AI yet)
 - Round transitions: cooldowns tick, status effects process, combos reset, win/loss checked
-- Loop repeats indefinitely
+- **No attacks yet** — click-to-target is the next feature
 
 ### Build Status
 - **Godot build**: 0 errors, 0 warnings
-- **Test suites**: 45 passed, 0 failed
-- **Total files**: 65 source + 28 test suites + BCO bricks/commands/tests
+- **Test suites**: 88 passed, 0 failed
+- **BCO compliance**: Full — all rules pass, zero dependency violations
 
 ### Debug Tooling
 Godot MCP bridge (`DebugBridge.cs`) runs as Autoload on `localhost:9880` in debug builds. Provides:
-- `screenshot` — viewport capture (PNG)
-- `godot_logs` — tails Godot's log file for GD.Print, errors, warnings
-- `scene_tree` / `inspect_node` — runtime node inspection
-- `input_key` / `input_mouse` / `input_action` — simulate player input
-- `call_method` — invoke methods on any node
-- `wait_frames` — pause between actions
+screenshot, godot_logs, scene_tree, inspect_node, input_key, input_mouse, input_action, call_method, wait_frames.
 
-MCP server config: `.mcp.json` at project root. Node.js server at `~/code/godot_mcp/index.js`.
+## BCO Status: Complete
 
-## BCO Refactor Status
+All 10 systems fully BCO-compliant. 45 bricks, 16 commands, 88 test suites.
 
-Architecture pattern documented in `~/code/BCO_PATTERN.md`. Every new unit needs: implementation + test + index entry.
+**Architecture layers:**
+```
+Types (Core/)     → Pure data shapes, shared contracts
+Bricks            → Pure atomic operations on types
+Commands          → Compose bricks, dependencies injected
+Orchestrators     → Own state, call commands, publish events
+```
 
-### Done
+**Brick domains:** Assist (4), Bond (2), Combat (14), Form (3), Loadout (2), Movement (4), Phase (3), Shared (10), Spatial (3)
 
-**PhaseManagement** — Fully refactored
-- 6 bricks: `ValidateMissionActive`, `CheckRangerDefeat`, `CheckVictoryCondition`, `ApplyEffectOutputToHealth`, `GetTargetHealthPool`, `CheckFormDeath`
-- 5 commands: `ExecutePhaseTransition`, `ExecuteRoundStart`, `ResolveWinLoss`, `ProcessRoundStatusEffects`, `InitializeMission`
-- PhaseManager is a thin orchestrator: owns state, calls commands, publishes events from results
+**Command domains:** Assist (1), Combat (6), Form (1), Gimmick (1), Loadout (1), Movement (1), Phase (5)
 
-### Partially Done
+**Types in Core/:** ActionEconomy (ActionBudget, BondState, BondTierChange, TurnEntry, ITurnParticipant), Assist (AssistCandidateState, AssistEffect, AssistResolution), Phase (MissionState, PhaseState), Form (FormAvailability, FormPoolEntry)
 
-**CombatResolution** (569 lines) — `ResolveDamageRoll` command + 6 combat bricks extracted. `CombatResolver` itself still inlines assist resolution, damage application, death checks, gimmick processing, and event publishing.
+## What's Next: Gameplay Features
 
-**Movement** — `ExecuteMovement` command + 4 movement bricks (`ValidateMovementRange`, `CheckActionBudget`, `ExecuteGridMove`, `ConsumeMoveBudget`). Range calculation still lives in `BattleGrid`.
+### Priority 1: Click-to-Target Attacks
+**Current state:** Rangers can move but cannot attack. The combat system (CombatResolver, ExecuteAttack command) is fully built and tested but not wired to player input.
 
-### Not Started
+**What's needed:**
+- After selecting the active ranger and optionally moving, player clicks an enemy to attack
+- Show attack range overlay (weapon range from current position)
+- Click enemy in range → execute attack via ExecuteAttack command → CombatResolver
+- Update UI with damage results, handle death
+- Consume action budget, end turn if no actions remain
 
-| System | Lines | Complexity | Notes |
-|---|---|---|---|
-| **CombatResolver** | 569 | High | Orchestrates full attack flow — biggest refactor target |
-| **GimmickResolver** | 397 | High | Spatial translation of gimmick outputs |
-| **FormPool** | 334 | Medium | Budget, cooldowns, exclusivity, loadout lock |
-| **MissionContext** | 331 | Medium | Dependency graph builder — may already be an orchestrator |
-| **LoadoutController** | 299 | Medium | First-morph gate, scouting intel, loadout validation |
-| **AssistResolver** | 288 | Medium | Finds eligible allies, calculates assist damage |
-| **SaveManager** | 273 | Low | Serialization, 10 slots, restore point |
-| **BondTracker** | 157 | Low | Bond tier tracking, assist eligibility |
-| **ActionBudget** | 123 | Low | Per-unit action economy (move/act/form switch) |
-| **TurnOrder** | 106 | Low | Unit sequencing within a phase |
+### Priority 2: Basic Enemy AI
+- Swap `AutoSkipEnemy` in `ExecutePhaseTransition` with real logic
+- Enemies move toward nearest ranger and attack if in range
+- Use existing `FindUnitsInRange` (Bricks/Spatial) for targeting
 
-## Priority: BCO Refactor Order
-
-Complete the BCO migration before adding new features. The investment pays off through testability, discoverability, and preventing monolithic code from growing further.
-
-### Phase 1: High-Touch Systems
-1. **CombatResolver** — Most complex, most frequently extended. Extract damage application, death processing, assist orchestration, gimmick triggering into bricks/commands.
-2. **Movement** — Finish the partial refactor. Extract range calculation from BattleGrid.
-
-### Phase 2: Medium Systems
-3. **AssistResolver** — Tightly coupled with CombatResolver. Refactor alongside or immediately after.
-4. **GimmickResolver** — Spatial logic (displacement, AoE) should be bricks. Resolver becomes thin.
-5. **FormPool** — Cooldown management, budget enforcement, exclusivity checks are natural bricks.
-6. **LoadoutController** — Validation logic, morph gate checks, loadout locking.
-
-### Phase 3: Lower Complexity
-7. **MissionContext** — Evaluate whether it's already an orchestrator. May just need index entry.
-8. **BondTracker** — Small, mostly state tracking. Quick refactor.
-9. **ActionBudget** — Already fairly atomic. May just need brick extraction for budget checks.
-10. **TurnOrder** — Small, well-scoped. Quick refactor.
-11. **SaveManager** — Serialization bricks, save/load commands.
-
-## What's Next After BCO
-
-### Gameplay (in priority order)
-1. **Click-to-target attacks** — Select enemy to attack (replaces auto-target)
-2. **Basic enemy AI** — Enemies move toward Rangers and attack (swap the `AutoSkipEnemy` processor in `ExecutePhaseTransition`)
-3. **Loadout selection UI** — Pick forms within budget on first morph
-4. **Form switching** — In-combat form change with cooldown
-5. **Health bars** — HP display above units
-
-### Polish
-- Tween animations for movement/attacks
-- Damage numbers floating above units
-- Phase transition banners
-- Sound effects
+### Priority 3: Loadout Selection UI
+### Priority 4: Form Switching
+### Priority 5: Health Bars
 
 ## How to Run
 
@@ -112,50 +76,63 @@ dotnet build TokuTactics.csproj
 dotnet run --project TestRunner.csproj
 ```
 
-### MCP Debug Bridge
-```bash
-claude mcp add godot node ~/code/godot_mcp/index.js
-```
-Game must be running with DebugBridge Autoload active (`localhost:9880`).
-
 ## File Structure
 
 ```
 Scripts/
-├── Bricks/
-│   ├── Combat/        # 6 bricks (damage, dodge, crit, type matchup, STAB, combo)
-│   ├── Movement/      # 4 bricks (validate range, check budget, execute move, consume budget)
-│   ├── Phase/         # 4 bricks (validate active, check defeat, check victory, apply effect)
-│   └── Round/         # 2 bricks (get health pool, check form death)
-├── Commands/
-│   ├── Combat/        # ResolveDamageRoll, ExecuteAttack
+├── Bricks/            # 45 bricks across 9 domains
+│   ├── Assist/        # 4 — eligibility, damage multiplier, tier 2/4
+│   ├── Bond/          # 2 — scaled XP, tier resolution
+│   ├── Combat/        # 14 — damage, dodge, crit, type, status, budget
+│   ├── Form/          # 3 — availability, equip validation, cooldown regen
+│   ├── Loadout/       # 2 — morph validation, loadout validation
+│   ├── Movement/      # 4 — range, budget, grid move, consume
+│   ├── Phase/         # 3 — defeat check, victory check, turn order build
+│   ├── Shared/        # 10 — mission active, health, form death, budget ops
+│   └── Spatial/       # 3 — units in range, displacement, spawn positions
+├── Commands/          # 16 commands across 7 domains
+│   ├── Assist/        # ResolveAssistEffect
+│   ├── Combat/        # ResolveDamageRoll, ExecuteAttack, ApplyWeaponStatus,
+│   │                  # ResolveTargetDeath, ResolveReactiveGimmick, ProcessAssist
+│   ├── Form/          # ProcessFormPoolTurn
+│   ├── Gimmick/       # ResolveGimmickEffects + GimmickResolution types
+│   ├── Loadout/       # ExecuteLoadoutSubmission + MorphRequestResult/LoadoutResult
 │   ├── Movement/      # ExecuteMovement
 │   └── Phase/         # ExecutePhaseTransition, ExecuteRoundStart, ResolveWinLoss,
 │                      # ProcessRoundStatusEffects, InitializeMission
-├── Core/              # Grid, Combat, Events, Health, Stats, StatusEffect, Types
-├── Data/Content/      # ContentRegistry, Catalogs (Forms, Rangers, Enemies, Episodes, Maps)
-├── Debug/             # DebugBridge.cs (Godot MCP server)
+├── Core/              # Shared types + engine-independent foundations
+│   ├── ActionEconomy/ # ActionBudget, BondState, BondTierChange, TurnEntry
+│   ├── Assist/        # AssistCandidateState, AssistEffect, AssistResolution
+│   ├── Combat/        # DamageCalculator, ComboScaler, ICombatActor/Target
+│   ├── Cooldown/      # CooldownTimer
+│   ├── Events/        # EventBus, GameEvents
+│   ├── Form/          # FormAvailability, FormPoolEntry
+│   ├── Grid/          # BattleGrid, Tile, TerrainConfig, GridPosition
+│   ├── Health/        # HealthPool, IHealthPool
+│   ├── Phase/         # MissionState, PhaseState
+│   ├── Stats/         # StatBlock, StatType
+│   ├── StatusEffect/  # StatusEffectTracker, StatusEffectInstance
+│   └── Types/         # ElementalType, DualType, TypeChart
+├── Data/Content/      # ContentRegistry, Catalogs
+├── Debug/             # DebugBridge.cs (Godot MCP)
 ├── Entities/          # Rangers, Enemies, Forms, Weapons, Zords
-└── Systems/           # Orchestrators: PhaseManager, CombatResolver, FormPool, etc.
+└── Systems/           # Orchestrators (thin shells calling commands)
 
-Scenes/
-├── Battle/
-│   ├── BattleScene.tscn/.gd    # Main scene, camera controls, input handling
-│   ├── BattleGridVisual.tscn/.gd  # Isometric tilemap, unit sprites, highlights
-│   └── BattleController.cs     # C#↔GDScript bridge, orchestrates game flow
-
-Tests/                 # 45 test suites, mirrors Scripts/ structure
+Scenes/Battle/         # BattleScene, BattleGridVisual, BattleController
+Tests/                 # 88 test suites mirroring Scripts/
 ```
 
-## Key Architecture Decisions
+## Key Rules
 
-- **BCO pattern** (`~/code/BCO_PATTERN.md`): Bricks (pure atomic ops) → Commands (composed intentions) → Orchestrators (state + events). Every unit needs implementation + test + index.
-- **Events are orchestrator-only**: Commands return declarative results. Orchestrators publish events.
-- **Godot MCP for verification**: After code changes, use screenshot/logs/scene_tree to self-verify instead of asking the user.
-- **Public API frozen on refactor**: When converting a system to BCO, the orchestrator's public API stays identical. Callers don't change.
+- **BCO pattern** (`~/code/BCO_PATTERN.md`): Types → Bricks → Commands → Orchestrators
+- **Every new unit needs:** implementation + test + index entry
+- **Check all indexes before creating new bricks** — avoid duplication
+- **Never bypass bricks** — always use brick Execute() to mutate types
+- **Events are orchestrator-only** — commands return declarative results
+- **Godot MCP for verification** — screenshot/logs/scene_tree after changes
 
 ## Repository
 
 **Remote**: git@github.com:sylverfyst/TokuTactics.git
 **Branch**: main
-**Latest commit**: `4f80889` — Fix three bugs in PhaseManager found during review
+**Latest commit**: `6b2a054` — Phase 3 BCO complete
