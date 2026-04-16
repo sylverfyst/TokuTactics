@@ -58,6 +58,7 @@ namespace TokuTactics.Scenes.Battle
 			Context.EventBus.Subscribe<PhaseTransitionEvent>(OnPhaseChanged, EventPriority.Presentation);
 			Context.EventBus.Subscribe<MissionVictoryEvent>(OnMissionWon, EventPriority.Presentation);
 			Context.EventBus.Subscribe<MissionDefeatEvent>(OnMissionLost, EventPriority.Presentation);
+			Context.EventBus.Subscribe<DamageDealtEvent>(OnDamageDealt, EventPriority.Presentation);
 
 			// Sync initial state to GDScript grid
 			SyncGridToVisual();
@@ -173,6 +174,17 @@ namespace TokuTactics.Scenes.Battle
 			}
 
 			GD.Print($"Synced {Context.Rangers.Count} Rangers + {Context.Enemies.Count} Enemies to grid");
+
+			// Push initial HP into each unit's health bar
+			foreach (var ranger in Context.Rangers.Where(r => r.IsAlive))
+			{
+				var pool = ranger.ActiveHealthPool;
+				_gridVisual.Call("update_health_bar", ranger.Id, pool.Current, pool.Maximum);
+			}
+			foreach (var enemy in Context.Enemies.Where(e => e.IsAlive))
+			{
+				_gridVisual.Call("update_health_bar", enemy.Id, enemy.Health.Current, enemy.Health.Maximum);
+			}
 		}
 
 		/// <summary>
@@ -221,6 +233,29 @@ namespace TokuTactics.Scenes.Battle
 		private void OnMissionLost(MissionDefeatEvent evt)
 		{
 			GD.Print("=== MISSION DEFEAT ===");
+		}
+
+		/// <summary>
+		/// Pushes the target's current HP to its health bar after damage lands.
+		/// Read-only — pulls fresh values from the already-mutated HealthPool.
+		/// </summary>
+		private void OnDamageDealt(DamageDealtEvent evt)
+		{
+			if (evt.WasDodged) return;
+
+			var ranger = Context.Rangers.FirstOrDefault(r => r.Id == evt.TargetId);
+			if (ranger != null)
+			{
+				var pool = ranger.ActiveHealthPool;
+				_gridVisual.Call("update_health_bar", ranger.Id, pool.Current, pool.Maximum);
+				return;
+			}
+
+			var enemy = Context.Enemies.FirstOrDefault(e => e.Id == evt.TargetId);
+			if (enemy != null)
+			{
+				_gridVisual.Call("update_health_bar", enemy.Id, enemy.Health.Current, enemy.Health.Maximum);
+			}
 		}
 
 		// === Player Input Handling ===
