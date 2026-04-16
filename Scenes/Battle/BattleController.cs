@@ -7,6 +7,7 @@ using TokuTactics.Systems.SaveLoad;
 using TokuTactics.Systems.PhaseManagement;
 using TokuTactics.Core.Events;
 using TokuTactics.Core.Grid;
+using TokuTactics.Commands.AI;
 using TokuTactics.Commands.Combat;
 using TokuTactics.Commands.Movement;
 using TokuTactics.Commands.Phase;
@@ -707,7 +708,7 @@ namespace TokuTactics.Scenes.Battle
 		var result = ExecutePhaseTransition.Execute(
 			Context.PhaseManager,
 			beginUnitTurn: unitId => Context.BeginUnitTurn(unitId),
-			processEnemyTurn: enemyId => GD.Print($"[C#] Enemy turn: {enemyId} (auto-skip)")
+			processEnemyTurn: ProcessEnemyTurn
 		);
 
 		// Log phase transition
@@ -723,6 +724,68 @@ namespace TokuTactics.Scenes.Battle
 
 		// UI update — presentation only
 		_battleScene.CallDeferred("update_turn_indicator", result.NextUnitId, true, true);
+	}
+
+	// === Enemy AI ===
+
+	/// <summary>
+	/// Process a single enemy's turn using the ResolveEnemyTurn command.
+	/// Called by ExecutePhaseTransition for each enemy.
+	/// </summary>
+	private void ProcessEnemyTurn(string enemyId)
+	{
+		var enemy = Context.Enemies.FirstOrDefault(e => e.Id == enemyId);
+		if (enemy == null || !enemy.IsAlive) return;
+
+		// Collect alive ranger IDs
+		var rangerIds = new HashSet<string>(
+			Context.Rangers.Where(r => r.IsAlive).Select(r => r.Id));
+
+		// Resolve what the enemy should do
+		var decision = ResolveEnemyTurn.Execute(
+			Context.Grid, enemyId,
+			enemy.Data.MovementRange, enemy.Data.BasicAttackRange,
+			rangerIds);
+
+		if (decision.DidNothing)
+		{
+			GD.Print($"[C#] Enemy {enemyId}: no action available");
+			return;
+		}
+
+		// Execute move
+		if (decision.MoveDestination.HasValue)
+		{
+			var dest = decision.MoveDestination.Value;
+			Context.Grid.MoveUnit(enemyId, dest);
+			_gridVisual.Call("move_unit", enemyId, new Vector2I(dest.Col, dest.Row));
+			GD.Print($"[C#] Enemy {enemyId}: moved to ({dest.Col}, {dest.Row})");
+		}
+
+		// Execute attack
+		if (decision.AttackTargetId != null)
+		{
+			var target = Context.Rangers.FirstOrDefault(r => r.Id == decision.AttackTargetId);
+			if (target != null && target.IsAlive)
+			{
+				var combat = Context.CombatResolver.ResolveEnemyAttack(
+					enemy, target, enemy.Data.BasicAttackPower, null);
+
+				GD.Print($"[C#] Enemy {enemyId}: attacked {decision.AttackTargetId} for {combat.TotalDamage} damage");
+
+				if (combat.TargetDied)
+				{
+					GD.Print($"[C#] Ranger {decision.AttackTargetId} defeated!");
+					_gridVisual.Call("remove_unit", decision.AttackTargetId);
+				}
+
+				if (combat.FormDied)
+					GD.Print($"[C#] Form destroyed: {combat.LostFormId}");
+
+				if (combat.MissionLost)
+					GD.Print("[C#] MISSION LOST");
+			}
+		}
 	}
 }
 }
