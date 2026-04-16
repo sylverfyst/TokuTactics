@@ -198,6 +198,10 @@ func spawn_unit(unit_id: String, grid_pos: Vector2i, unit_type: String, color: S
 	add_child(sprite)
 	unit_sprites[unit_id] = sprite
 
+	# Add a health bar as a child of the sprite (inherits transform)
+	var faction_color = Color(0.3, 0.85, 0.35) if unit_type == "ranger" else Color(0.9, 0.25, 0.25)
+	_create_health_bar(sprite, faction_color)
+
 ## Moves a unit sprite to a new grid position
 func move_unit(unit_id: String, new_grid_pos: Vector2i):
 	if unit_sprites.has(unit_id):
@@ -227,6 +231,73 @@ func highlight_active_unit(unit_id: String):
 func clear_unit_highlight():
 	for sprite in unit_sprites.values():
 		sprite.modulate = Color(1.0, 1.0, 1.0)  # Normal
+
+## ===== HEALTH BARS =====
+
+# Bar dimensions in sprite-local coords (sprite is 15x17px, scaled 4x on screen).
+# These produce a ~14x2 local bar = ~56x8 px on screen — narrower than the sprite.
+const HEALTH_BAR_WIDTH = 14.0
+const HEALTH_BAR_HEIGHT = 2.0
+const HEALTH_BAR_Y_OFFSET = -11.0  # Just above the sprite's head (sprite top ≈ -8.5)
+
+## Create a health bar as a child of the unit sprite. The bar inherits the sprite's
+## transform, so it moves with the sprite automatically and is freed when the sprite
+## queue_free()s on death.
+func _create_health_bar(sprite: Sprite2D, fill_color: Color):
+	var bar = Node2D.new()
+	bar.name = "HealthBar"
+	bar.position = Vector2(0, HEALTH_BAR_Y_OFFSET)
+	bar.z_index = 1  # Above the sprite (z_index relative to parent)
+
+	var half_w = HEALTH_BAR_WIDTH * 0.5
+	var rect_full = PackedVector2Array([
+		Vector2(-half_w, 0),
+		Vector2(half_w, 0),
+		Vector2(half_w, HEALTH_BAR_HEIGHT),
+		Vector2(-half_w, HEALTH_BAR_HEIGHT),
+	])
+
+	var bg = Polygon2D.new()
+	bg.name = "Background"
+	bg.polygon = rect_full
+	bg.color = Color(0.08, 0.08, 0.08, 0.9)
+	bar.add_child(bg)
+
+	var fill = Polygon2D.new()
+	fill.name = "Fill"
+	fill.polygon = rect_full
+	fill.color = fill_color
+	bar.add_child(fill)
+
+	sprite.add_child(bar)
+
+## Update a unit's health bar fill from current/max HP.
+## Called by BattleController on DamageDealtEvent and after initial spawn.
+func update_health_bar(unit_id: String, current: float, maximum: float):
+	if not unit_sprites.has(unit_id):
+		return
+
+	var sprite = unit_sprites[unit_id]
+	var bar = sprite.get_node_or_null("HealthBar")
+	if bar == null:
+		return
+
+	var fill = bar.get_node_or_null("Fill") as Polygon2D
+	if fill == null:
+		return
+
+	var pct = 0.0
+	if maximum > 0.0:
+		pct = clamp(current / maximum, 0.0, 1.0)
+
+	var half_w = HEALTH_BAR_WIDTH * 0.5
+	var fill_right = -half_w + (HEALTH_BAR_WIDTH * pct)
+	fill.polygon = PackedVector2Array([
+		Vector2(-half_w, 0),
+		Vector2(fill_right, 0),
+		Vector2(fill_right, HEALTH_BAR_HEIGHT),
+		Vector2(-half_w, HEALTH_BAR_HEIGHT),
+	])
 
 ## ===== TILE DIAGNOSTICS =====
 
