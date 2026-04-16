@@ -50,6 +50,7 @@ namespace TokuTactics.Commands.Phase
                 if (enemy == null) break;
 
                 string enemyId = enemy.Participant.ParticipantId;
+                beginUnitTurn(enemyId);
                 processEnemyTurn(enemyId);
                 enemyTurns.Add(enemyId);
                 phaseManager.EndCurrentTurn();

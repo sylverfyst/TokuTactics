@@ -7,6 +7,7 @@ using TokuTactics.Systems.SaveLoad;
 using TokuTactics.Systems.PhaseManagement;
 using TokuTactics.Core.Events;
 using TokuTactics.Core.Grid;
+using TokuTactics.Commands.AI;
 using TokuTactics.Commands.Combat;
 using TokuTactics.Commands.Movement;
 using TokuTactics.Commands.Phase;
@@ -707,7 +708,7 @@ namespace TokuTactics.Scenes.Battle
 		var result = ExecutePhaseTransition.Execute(
 			Context.PhaseManager,
 			beginUnitTurn: unitId => Context.BeginUnitTurn(unitId),
-			processEnemyTurn: enemyId => GD.Print($"[C#] Enemy turn: {enemyId} (auto-skip)")
+			processEnemyTurn: ProcessEnemyTurn
 		);
 
 		// Log phase transition
@@ -723,6 +724,111 @@ namespace TokuTactics.Scenes.Battle
 
 		// UI update — presentation only
 		_battleScene.CallDeferred("update_turn_indicator", result.NextUnitId, true, true);
+	}
+
+	// === Enemy AI ===
+
+	/// <summary>
+	/// Process a single enemy's turn using the ResolveEnemyTurn command.
+	/// Called by ExecutePhaseTransition for each enemy. Routes the move and
+	/// attack through the same BCO commands the player uses, so the enemy's
+	/// ActionBudget is validated and consumed consistently.
+	/// </summary>
+	private void ProcessEnemyTurn(string enemyId)
+	{
+		var enemy = Context.Enemies.FirstOrDefault(e => e.Id == enemyId);
+		if (enemy == null || !enemy.IsAlive) return;
+
+		if (!Context.ActionBudgets.TryGetValue(enemyId, out var budget))
+		{
+			GD.Print($"[C#] Enemy {enemyId}: no action budget");
+			return;
+		}
+
+		// Collect alive ranger IDs
+		var rangerIds = new HashSet<string>(
+			Context.Rangers.Where(r => r.IsAlive).Select(r => r.Id));
+
+		// Resolve what the enemy should do
+		var decision = ResolveEnemyTurn.Execute(
+			Context.Grid, enemyId,
+			enemy.Data.MovementRange, enemy.Data.BasicAttackRange,
+			rangerIds);
+
+		if (decision.DidNothing)
+		{
+			GD.Print($"[C#] Enemy {enemyId}: no action available");
+			return;
+		}
+
+		// Execute move via ExecuteMovement command (consumes ActionBudget.CanMove)
+		if (decision.MoveDestination.HasValue)
+		{
+			var enemyPos = Context.Grid.GetUnitPosition(enemyId);
+			if (enemyPos.HasValue)
+			{
+				var movementRange = Context.Grid.GetMovementRange(
+					enemyPos.Value, enemy.Data.MovementRange);
+
+				var moveResult = ExecuteMovement.Execute(
+					unitId: enemyId,
+					destination: decision.MoveDestination.Value,
+					movementRange: movementRange,
+					grid: Context.Grid,
+					actionBudget: budget);
+
+				if (moveResult.Success)
+				{
+					var dest = decision.MoveDestination.Value;
+					_gridVisual.Call("move_unit", enemyId, new Vector2I(dest.Col, dest.Row));
+					GD.Print($"[C#] Enemy {enemyId}: moved to ({dest.Col}, {dest.Row})");
+				}
+				else
+				{
+					GD.Print($"[C#] Enemy {enemyId}: move failed — {moveResult.FailureReason}");
+				}
+			}
+		}
+
+		// Execute attack via ExecuteAttack command (consumes ActionBudget.CanAct)
+		if (decision.AttackTargetId != null)
+		{
+			var target = Context.Rangers.FirstOrDefault(r => r.Id == decision.AttackTargetId);
+			if (target == null || !target.IsAlive) return;
+
+			var attackerPos = Context.Grid.GetUnitPosition(enemyId);
+			var targetPos = Context.Grid.GetUnitPosition(decision.AttackTargetId);
+			if (!attackerPos.HasValue || !targetPos.HasValue) return;
+
+			var attackResult = ExecuteAttack.Execute(
+				attackerPos: attackerPos.Value,
+				targetPos: targetPos.Value,
+				weaponRange: enemy.Data.BasicAttackRange,
+				actionBudget: budget,
+				resolveCombat: () => Context.CombatResolver.ResolveEnemyAttack(
+					enemy, target, enemy.Data.BasicAttackPower, null));
+
+			if (!attackResult.Success)
+			{
+				GD.Print($"[C#] Enemy {enemyId}: attack failed — {attackResult.FailureReason}");
+				return;
+			}
+
+			var combat = attackResult.CombatResult;
+			GD.Print($"[C#] Enemy {enemyId}: attacked {decision.AttackTargetId} for {combat.TotalDamage} damage");
+
+			if (combat.TargetDied)
+			{
+				GD.Print($"[C#] Ranger {decision.AttackTargetId} defeated!");
+				_gridVisual.Call("remove_unit", decision.AttackTargetId);
+			}
+
+			if (combat.FormDied)
+				GD.Print($"[C#] Form destroyed: {combat.LostFormId}");
+
+			if (combat.MissionLost)
+				GD.Print("[C#] MISSION LOST");
+		}
 	}
 }
 }

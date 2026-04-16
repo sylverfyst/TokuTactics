@@ -72,6 +72,8 @@ namespace TokuTactics.Tests
             RunSuite("FindUnitsInRange", Bricks.Spatial.FindUnitsInRangeTests.Run, ref passed, ref failed);
             RunSuite("CalculateDisplacement", Bricks.Spatial.CalculateDisplacementTests.Run, ref passed, ref failed);
             RunSuite("FindPassableSpawnPositions", Bricks.Spatial.FindPassableSpawnPositionsTests.Run, ref passed, ref failed);
+            RunSuite("FindNearestUnit", Bricks.Spatial.FindNearestUnitTests.Run, ref passed, ref failed);
+            RunSuite("FindBestMoveToward", Bricks.Spatial.FindBestMoveTowardTests.Run, ref passed, ref failed);
 
             // BCO Bricks - Shared
             RunSuite("ValidateMissionActive", Bricks.Shared.ValidateMissionActiveTests.Run, ref passed, ref failed);
@@ -132,6 +134,9 @@ namespace TokuTactics.Tests
 
             // BCO Commands - Form
             RunSuite("ProcessFormPoolTurn", Commands.Form.ProcessFormPoolTurnTests.Run, ref passed, ref failed);
+
+            // BCO Commands - AI
+            RunSuite("ResolveEnemyTurn", Commands.AI.ResolveEnemyTurnTests.Run, ref passed, ref failed);
 
             // BCO Commands - Gimmick
             RunSuite("ResolveGimmickEffects", Commands.Gimmick.ResolveGimmickEffectsTests.Run, ref passed, ref failed);

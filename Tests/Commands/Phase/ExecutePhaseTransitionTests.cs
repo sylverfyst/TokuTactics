@@ -25,6 +25,7 @@ namespace TokuTactics.Tests.Commands.Phase
             Test_RoundNumberIncrements();
             Test_FirstPlayerUnitIsReturned();
             Test_BeginUnitTurnIsCalledForNextUnit();
+            Test_BeginUnitTurnCalledForEachEnemyBeforeProcess();
             Console.WriteLine("ExecutePhaseTransitionTests: All passed");
         }
 
@@ -98,6 +99,29 @@ namespace TokuTactics.Tests.Commands.Phase
 
             Assert(begunUnitId == result.NextUnitId,
                 $"BeginUnitTurn should be called for {result.NextUnitId}, got {begunUnitId}");
+        }
+
+        private static void Test_BeginUnitTurnCalledForEachEnemyBeforeProcess()
+        {
+            var (mgr, _, _) = SetupPlayerPhaseComplete();
+            // Record all callbacks as ("begin"|"process", id) pairs in invocation order.
+            var calls = new List<(string kind, string id)>();
+
+            ExecutePhaseTransition.Execute(
+                mgr,
+                beginUnitTurn: id => calls.Add(("begin", id)),
+                processEnemyTurn: id => calls.Add(("process", id)));
+
+            // Each "process" call must be preceded by a matching "begin" call for the same enemy.
+            foreach (var (kind, id) in calls)
+            {
+                if (kind != "process") continue;
+                int processIdx = calls.IndexOf((kind, id));
+                int beginIdx = calls.IndexOf(("begin", id));
+                Assert(beginIdx >= 0, $"beginUnitTurn never called for enemy {id}");
+                Assert(beginIdx < processIdx,
+                    $"beginUnitTurn for {id} (idx {beginIdx}) must precede processEnemyTurn (idx {processIdx})");
+            }
         }
 
         // === Helpers ===
