@@ -730,12 +730,20 @@ namespace TokuTactics.Scenes.Battle
 
 	/// <summary>
 	/// Process a single enemy's turn using the ResolveEnemyTurn command.
-	/// Called by ExecutePhaseTransition for each enemy.
+	/// Called by ExecutePhaseTransition for each enemy. Routes the move and
+	/// attack through the same BCO commands the player uses, so the enemy's
+	/// ActionBudget is validated and consumed consistently.
 	/// </summary>
 	private void ProcessEnemyTurn(string enemyId)
 	{
 		var enemy = Context.Enemies.FirstOrDefault(e => e.Id == enemyId);
 		if (enemy == null || !enemy.IsAlive) return;
+
+		if (!Context.ActionBudgets.TryGetValue(enemyId, out var budget))
+		{
+			GD.Print($"[C#] Enemy {enemyId}: no action budget");
+			return;
+		}
 
 		// Collect alive ranger IDs
 		var rangerIds = new HashSet<string>(
@@ -753,38 +761,73 @@ namespace TokuTactics.Scenes.Battle
 			return;
 		}
 
-		// Execute move
+		// Execute move via ExecuteMovement command (consumes ActionBudget.CanMove)
 		if (decision.MoveDestination.HasValue)
 		{
-			var dest = decision.MoveDestination.Value;
-			Context.Grid.MoveUnit(enemyId, dest);
-			_gridVisual.Call("move_unit", enemyId, new Vector2I(dest.Col, dest.Row));
-			GD.Print($"[C#] Enemy {enemyId}: moved to ({dest.Col}, {dest.Row})");
+			var enemyPos = Context.Grid.GetUnitPosition(enemyId);
+			if (enemyPos.HasValue)
+			{
+				var movementRange = Context.Grid.GetMovementRange(
+					enemyPos.Value, enemy.Data.MovementRange);
+
+				var moveResult = ExecuteMovement.Execute(
+					unitId: enemyId,
+					destination: decision.MoveDestination.Value,
+					movementRange: movementRange,
+					grid: Context.Grid,
+					actionBudget: budget);
+
+				if (moveResult.Success)
+				{
+					var dest = decision.MoveDestination.Value;
+					_gridVisual.Call("move_unit", enemyId, new Vector2I(dest.Col, dest.Row));
+					GD.Print($"[C#] Enemy {enemyId}: moved to ({dest.Col}, {dest.Row})");
+				}
+				else
+				{
+					GD.Print($"[C#] Enemy {enemyId}: move failed — {moveResult.FailureReason}");
+				}
+			}
 		}
 
-		// Execute attack
+		// Execute attack via ExecuteAttack command (consumes ActionBudget.CanAct)
 		if (decision.AttackTargetId != null)
 		{
 			var target = Context.Rangers.FirstOrDefault(r => r.Id == decision.AttackTargetId);
-			if (target != null && target.IsAlive)
+			if (target == null || !target.IsAlive) return;
+
+			var attackerPos = Context.Grid.GetUnitPosition(enemyId);
+			var targetPos = Context.Grid.GetUnitPosition(decision.AttackTargetId);
+			if (!attackerPos.HasValue || !targetPos.HasValue) return;
+
+			var attackResult = ExecuteAttack.Execute(
+				attackerPos: attackerPos.Value,
+				targetPos: targetPos.Value,
+				weaponRange: enemy.Data.BasicAttackRange,
+				actionBudget: budget,
+				resolveCombat: () => Context.CombatResolver.ResolveEnemyAttack(
+					enemy, target, enemy.Data.BasicAttackPower, null));
+
+			if (!attackResult.Success)
 			{
-				var combat = Context.CombatResolver.ResolveEnemyAttack(
-					enemy, target, enemy.Data.BasicAttackPower, null);
-
-				GD.Print($"[C#] Enemy {enemyId}: attacked {decision.AttackTargetId} for {combat.TotalDamage} damage");
-
-				if (combat.TargetDied)
-				{
-					GD.Print($"[C#] Ranger {decision.AttackTargetId} defeated!");
-					_gridVisual.Call("remove_unit", decision.AttackTargetId);
-				}
-
-				if (combat.FormDied)
-					GD.Print($"[C#] Form destroyed: {combat.LostFormId}");
-
-				if (combat.MissionLost)
-					GD.Print("[C#] MISSION LOST");
+				GD.Print($"[C#] Enemy {enemyId}: attack failed — {attackResult.FailureReason}");
+				return;
 			}
+
+			var combat = attackResult.CombatResult;
+			GD.Print($"[C#] Enemy {enemyId}: attacked {decision.AttackTargetId} for {combat.TotalDamage} damage");
+
+			if (combat.TargetDied)
+			{
+				GD.Print($"[C#] Ranger {decision.AttackTargetId} defeated!");
+				_gridVisual.Call("remove_unit", decision.AttackTargetId);
+			}
+
+			if (combat.FormDied)
+				GD.Print($"[C#] Form destroyed: {combat.LostFormId}");
+
+			if (combat.MissionLost)
+				GD.Print("[C#] MISSION LOST");
 		}
 	}
 }

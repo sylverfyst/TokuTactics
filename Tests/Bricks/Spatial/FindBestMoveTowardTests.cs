@@ -13,6 +13,7 @@ namespace TokuTactics.Tests.Bricks.Spatial
             Test_SkipsOccupied();
             Test_NoImprovement_ReturnsNull();
             Test_EmptyRange_ReturnsNull();
+            Test_TieBreaksByGridPosition();
             Console.WriteLine("FindBestMoveTowardTests: All passed");
         }
 
@@ -75,6 +76,31 @@ namespace TokuTactics.Tests.Bricks.Spatial
             var result = FindBestMoveToward.Execute(grid, new GridPosition(5, 0),
                 new Dictionary<GridPosition, int>(), new GridPosition(5, 5));
             Assert(!result.HasValue, "Empty range should return null");
+        }
+
+        private static void Test_TieBreaksByGridPosition()
+        {
+            // Two reachable tiles equidistant from the target — must always pick
+            // the same one regardless of Dictionary iteration order.
+            // GridPosition.CompareTo orders by Row then Col (lowest first).
+            var grid = new BattleGrid(10, 10);
+            var target = new GridPosition(5, 0);
+            var current = new GridPosition(5, 5);
+            // Both tiles are distance 4 from target (current is distance 5, so both improve).
+            var tileA = new GridPosition(4, 3);  // CompareTo wins: same row, lower col
+            var tileB = new GridPosition(6, 3);
+
+            var range1 = new Dictionary<GridPosition, int> { { tileB, 3 }, { tileA, 3 }, { current, 0 } };
+            var range2 = new Dictionary<GridPosition, int> { { tileA, 3 }, { tileB, 3 }, { current, 0 } };
+
+            var r1 = FindBestMoveToward.Execute(grid, target, range1, current);
+            var r2 = FindBestMoveToward.Execute(grid, target, range2, current);
+
+            Assert(r1.HasValue && r2.HasValue, "Both should find a tile");
+            Assert(r1.Value == r2.Value,
+                $"Tied tiles should resolve identically regardless of insert order, got {r1.Value} vs {r2.Value}");
+            Assert(r1.Value == tileA,
+                $"Lower-CompareTo tile {tileA} should win, got {r1.Value}");
         }
 
         private static void Assert(bool condition, string message)

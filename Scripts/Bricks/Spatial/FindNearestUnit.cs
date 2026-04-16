@@ -5,6 +5,8 @@ namespace TokuTactics.Bricks.Spatial
 {
     /// <summary>
     /// Finds the nearest unit from a set of target IDs, by Manhattan distance from a position.
+    /// Ties broken by ordinal unit ID (lowest wins) so results are deterministic
+    /// regardless of HashSet iteration order.
     /// Returns the ID and position of the closest unit, or null if none found.
     /// </summary>
     public static class FindNearestUnit
@@ -24,7 +26,12 @@ namespace TokuTactics.Bricks.Spatial
                 if (!pos.HasValue) continue;
 
                 int distance = fromPosition.ManhattanDistance(pos.Value);
-                if (distance < nearestDistance)
+
+                bool wins = distance < nearestDistance
+                    || (distance == nearestDistance
+                        && string.CompareOrdinal(unitId, nearestId) < 0);
+
+                if (wins)
                 {
                     nearestDistance = distance;
                     nearestId = unitId;

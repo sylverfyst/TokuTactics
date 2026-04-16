@@ -11,7 +11,8 @@ namespace TokuTactics.Tests.Bricks.Spatial
         {
             Test_FindsClosest();
             Test_EmptyTargets_ReturnsNull();
-            Test_TieBreaksConsistently();
+            Test_TieBreaksByLowestId();
+            Test_TieBreakIndependentOfInsertOrder();
             Console.WriteLine("FindNearestUnitTests: All passed");
         }
 
@@ -35,7 +36,7 @@ namespace TokuTactics.Tests.Bricks.Spatial
             Assert(!result.HasValue, "Empty targets should return null");
         }
 
-        private static void Test_TieBreaksConsistently()
+        private static void Test_TieBreaksByLowestId()
         {
             var grid = new BattleGrid(10, 10);
             grid.PlaceUnit("a", new GridPosition(4, 5));
@@ -45,8 +46,31 @@ namespace TokuTactics.Tests.Bricks.Spatial
             var result = FindNearestUnit.Execute(grid, new GridPosition(5, 5), targets);
 
             Assert(result.HasValue, "Should find a unit");
-            // Both are distance 1 — just verify we get one consistently
-            Assert(result.Value.id == "a" || result.Value.id == "b", "Should return one of the tied units");
+            // Both are distance 1 — ordinal-lowest ID wins ("a")
+            Assert(result.Value.id == "a", $"Tie should resolve to 'a', got {result.Value.id}");
+        }
+
+        private static void Test_TieBreakIndependentOfInsertOrder()
+        {
+            // Same units, different insertion order — must produce the same winner.
+            var grid1 = new BattleGrid(10, 10);
+            grid1.PlaceUnit("zebra", new GridPosition(4, 5));
+            grid1.PlaceUnit("alpha", new GridPosition(6, 5));
+
+            var grid2 = new BattleGrid(10, 10);
+            grid2.PlaceUnit("alpha", new GridPosition(6, 5));
+            grid2.PlaceUnit("zebra", new GridPosition(4, 5));
+
+            var targets1 = new HashSet<string> { "zebra", "alpha" };
+            var targets2 = new HashSet<string> { "alpha", "zebra" };
+
+            var r1 = FindNearestUnit.Execute(grid1, new GridPosition(5, 5), targets1);
+            var r2 = FindNearestUnit.Execute(grid2, new GridPosition(5, 5), targets2);
+
+            Assert(r1.HasValue && r2.HasValue, "Both should find a unit");
+            Assert(r1.Value.id == r2.Value.id,
+                $"Same inputs in different order should give same result, got {r1.Value.id} vs {r2.Value.id}");
+            Assert(r1.Value.id == "alpha", $"Ordinal-lowest 'alpha' should win, got {r1.Value.id}");
         }
 
         private static void Assert(bool condition, string message)
