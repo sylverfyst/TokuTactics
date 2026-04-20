@@ -1031,12 +1031,17 @@ namespace TokuTactics.Scenes.Battle
 		_battleScene.Call("hide_form_switch_panel");
 		PushUnitHealthBar(activeId);
 
-		// Deselect and clear any highlights from pre-switch state
+		// Clear old highlights before re-selecting with new form stats
 		if (_selectedUnitId != null) DeselectUnit();
 
 		UpdateTurnIndicator();
 
 		GD.Print($"[C#] {activeId} switched from {previousForm.Data.Name} to {formData.Name}");
+
+		// Auto-select the ranger so movement/attack range shows immediately
+		var pos = Context.Grid.GetUnitPosition(activeId);
+		if (pos.HasValue)
+			SelectUnit(activeId, pos.Value);
 	}
 
 	/// <summary>
