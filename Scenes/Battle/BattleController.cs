@@ -639,6 +639,7 @@ namespace TokuTactics.Scenes.Battle
 		if (combat.TargetDied)
 		{
 			GD.Print($"[C#] Enemy {targetId} defeated!");
+			Context.Grid.RemoveUnit(targetId);
 			_gridVisual.Call("remove_unit", targetId);
 
 			// Check win condition
@@ -1148,6 +1149,7 @@ namespace TokuTactics.Scenes.Battle
 			if (combat.TargetDied)
 			{
 				GD.Print($"[C#] Ranger {decision.AttackTargetId} defeated!");
+				Context.Grid.RemoveUnit(decision.AttackTargetId);
 				_gridVisual.Call("remove_unit", decision.AttackTargetId);
 			}
 
