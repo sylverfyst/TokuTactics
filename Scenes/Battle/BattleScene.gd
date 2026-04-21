@@ -320,3 +320,64 @@ func hide_form_switch_panel():
 func _on_form_switch_selected(form_id: String):
 	if battle_controller:
 		battle_controller.OnFormSwitchSelected(form_id)
+
+# === Mission Result ===
+
+func show_mission_result(result_text: String, rounds: int):
+	var panel = PanelContainer.new()
+	panel.name = "MissionResultPanel"
+
+	var style = StyleBoxFlat.new()
+	if result_text == "VICTORY":
+		style.bg_color = Color(0.05, 0.15, 0.05, 0.95)
+		style.border_color = Color(0.3, 1.0, 0.3)
+	else:
+		style.bg_color = Color(0.2, 0.05, 0.05, 0.95)
+		style.border_color = Color(1.0, 0.3, 0.3)
+	style.border_width_left = 3
+	style.border_width_right = 3
+	style.border_width_top = 3
+	style.border_width_bottom = 3
+	style.corner_radius_top_left = 12
+	style.corner_radius_top_right = 12
+	style.corner_radius_bottom_left = 12
+	style.corner_radius_bottom_right = 12
+	style.content_margin_left = 40
+	style.content_margin_right = 40
+	style.content_margin_top = 30
+	style.content_margin_bottom = 30
+	panel.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 16)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	var title = Label.new()
+	title.text = "MISSION " + result_text
+	title.add_theme_font_size_override("font_size", 36)
+	if result_text == "VICTORY":
+		title.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+	else:
+		title.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+
+	var rounds_label = Label.new()
+	rounds_label.text = "Rounds: " + str(rounds)
+	rounds_label.add_theme_font_size_override("font_size", 20)
+	rounds_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	rounds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(rounds_label)
+
+	panel.add_child(vbox)
+
+	# Center on screen
+	panel.anchors_preset = Control.PRESET_CENTER
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+
+	$UI.add_child(panel)
+
+	# Also update turn indicator
+	if turn_indicator:
+		turn_indicator.text = "MISSION " + result_text

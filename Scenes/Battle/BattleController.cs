@@ -230,14 +230,20 @@ namespace TokuTactics.Scenes.Battle
 			GD.Print($"[C#] Phase changed: {evt.FromPhaseId} → {evt.ToPhaseId}");
 		}
 
+		private bool _missionEnded;
+
 		private void OnMissionWon(MissionVictoryEvent evt)
 		{
-			GD.Print("=== MISSION VICTORY ===");
+			_missionEnded = true;
+			GD.Print($"=== MISSION VICTORY === (Round {evt.RoundsElapsed})");
+			_battleScene.Call("show_mission_result", "VICTORY", evt.RoundsElapsed);
 		}
 
 		private void OnMissionLost(MissionDefeatEvent evt)
 		{
-			GD.Print("=== MISSION DEFEAT ===");
+			_missionEnded = true;
+			GD.Print($"=== MISSION DEFEAT === ({evt.FallenRangerId} fell, Round {evt.RoundsElapsed})");
+			_battleScene.Call("show_mission_result", "DEFEAT", evt.RoundsElapsed);
 		}
 
 		/// <summary>
@@ -267,6 +273,7 @@ namespace TokuTactics.Scenes.Battle
 
 		public void OnTileClicked(int col, int row)
 		{
+			if (_missionEnded) return;
 			var clickedPos = new GridPosition(col, row);
 			GD.Print($"[C#] Tile clicked: ({col}, {row})");
 
@@ -731,6 +738,7 @@ namespace TokuTactics.Scenes.Battle
 	/// </summary>
 	public void EndCurrentUnitTurn()
 	{
+		if (_missionEnded) return;
 		GD.Print("[C#] EndCurrentUnitTurn called");
 
 		// Get the active unit from PhaseManager
@@ -809,7 +817,7 @@ namespace TokuTactics.Scenes.Battle
 	/// </summary>
 	public void OnMorphPressed()
 	{
-		if (_loadoutPanelOpen || _formSwitchPanelOpen) return;
+		if (_missionEnded || _loadoutPanelOpen || _formSwitchPanelOpen) return;
 
 		var activeId = Context.PhaseManager.ActiveUnit?.Participant.ParticipantId;
 		if (activeId == null) return;
@@ -927,7 +935,7 @@ namespace TokuTactics.Scenes.Battle
 	/// </summary>
 	public void OnFormSwitchPressed()
 	{
-		if (_loadoutPanelOpen || _formSwitchPanelOpen) return;
+		if (_missionEnded || _loadoutPanelOpen || _formSwitchPanelOpen) return;
 
 		var activeId = Context.PhaseManager.ActiveUnit?.Participant.ParticipantId;
 		if (activeId == null) return;
@@ -1151,13 +1159,11 @@ namespace TokuTactics.Scenes.Battle
 				GD.Print($"[C#] Ranger {decision.AttackTargetId} defeated!");
 				Context.Grid.RemoveUnit(decision.AttackTargetId);
 				_gridVisual.Call("remove_unit", decision.AttackTargetId);
+				Context.PhaseManager.CheckWinLoss();
 			}
 
 			if (combat.FormDied)
 				GD.Print($"[C#] Form destroyed: {combat.LostFormId}");
-
-			if (combat.MissionLost)
-				GD.Print("[C#] MISSION LOST");
 		}
 	}
 }
