@@ -11,7 +11,12 @@ using TokuTactics.Commands.AI;
 using TokuTactics.Commands.Combat;
 using TokuTactics.Commands.Movement;
 using TokuTactics.Commands.Phase;
+using TokuTactics.Commands.Loadout;
+using TokuTactics.Bricks.Shared;
 using TokuTactics.Core.ActionEconomy;
+using TokuTactics.Core.Form;
+using TokuTactics.Core.Stats;
+using TokuTactics.Entities.Rangers;
 
 namespace TokuTactics.Scenes.Battle
 {
@@ -91,7 +96,7 @@ namespace TokuTactics.Scenes.Battle
 
 			var registry = ContentRegistry.CreateVerticalSlice();
 			var episode = registry.GetEpisode("episode_frozen_outpost");
-			var campaignData = new CampaignData();
+			var campaignData = new CampaignData { FormBudget = 3 };
 
 			Context = MissionContext.Create(episode, campaignData, registry);
 
@@ -225,14 +230,20 @@ namespace TokuTactics.Scenes.Battle
 			GD.Print($"[C#] Phase changed: {evt.FromPhaseId} → {evt.ToPhaseId}");
 		}
 
+		private bool _missionEnded;
+
 		private void OnMissionWon(MissionVictoryEvent evt)
 		{
-			GD.Print("=== MISSION VICTORY ===");
+			_missionEnded = true;
+			GD.Print($"=== MISSION VICTORY === (Round {evt.RoundsElapsed})");
+			_battleScene.Call("show_mission_result", "VICTORY", evt.RoundsElapsed);
 		}
 
 		private void OnMissionLost(MissionDefeatEvent evt)
 		{
-			GD.Print("=== MISSION DEFEAT ===");
+			_missionEnded = true;
+			GD.Print($"=== MISSION DEFEAT === ({evt.FallenRangerId} fell, Round {evt.RoundsElapsed})");
+			_battleScene.Call("show_mission_result", "DEFEAT", evt.RoundsElapsed);
 		}
 
 		/// <summary>
@@ -262,6 +273,7 @@ namespace TokuTactics.Scenes.Battle
 
 		public void OnTileClicked(int col, int row)
 		{
+			if (_missionEnded) return;
 			var clickedPos = new GridPosition(col, row);
 			GD.Print($"[C#] Tile clicked: ({col}, {row})");
 
@@ -634,6 +646,7 @@ namespace TokuTactics.Scenes.Battle
 		if (combat.TargetDied)
 		{
 			GD.Print($"[C#] Enemy {targetId} defeated!");
+			Context.Grid.RemoveUnit(targetId);
 			_gridVisual.Call("remove_unit", targetId);
 
 			// Check win condition
@@ -661,14 +674,21 @@ namespace TokuTactics.Scenes.Battle
 	}
 
 	/// <summary>
-	/// Update the turn indicator UI with the active unit's current budget.
+	/// Update the turn indicator UI with the active unit's current budget and morph state.
 	/// </summary>
 	private void UpdateTurnIndicator()
 	{
 		if (Context.PhaseManager.ActiveUnit == null) return;
 		string activeId = Context.PhaseManager.ActiveUnit.Participant.ParticipantId;
-		if (Context.ActionBudgets.TryGetValue(activeId, out var b))
-			_battleScene.CallDeferred("update_turn_indicator", activeId, b.CanMove, b.CanAct);
+		if (!Context.ActionBudgets.TryGetValue(activeId, out var b)) return;
+
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == activeId);
+		string formName = ranger?.CurrentForm?.Data.Name ?? "";
+		bool canMorph = ranger != null && ranger.MorphState == MorphState.Unmorphed && b.CanAct;
+		bool canSwitch = ranger != null && ranger.MorphState == MorphState.Morphed && b.CanFormSwitch;
+
+		_battleScene.CallDeferred("update_turn_indicator",
+			activeId, b.CanMove, b.CanAct, formName, canMorph, canSwitch);
 	}
 
 	/// <summary>
@@ -681,9 +701,14 @@ namespace TokuTactics.Scenes.Battle
 
 		if (Context.ActionBudgets.TryGetValue(unitId, out var budget))
 		{
-			// CallDeferred ensures the GDScript turn_indicator @onready var is set
-			_battleScene.CallDeferred("update_turn_indicator", unitId, budget.CanMove, budget.CanAct);
-			GD.Print($"  UI updated with budget: CanMove={budget.CanMove}, CanAct={budget.CanAct}");
+			var ranger = Context.Rangers.FirstOrDefault(r => r.Id == unitId);
+			string formName = ranger?.CurrentForm?.Data.Name ?? "";
+			bool canMorph = ranger != null && ranger.MorphState == MorphState.Unmorphed && budget.CanAct;
+			bool canSwitch = ranger != null && ranger.MorphState == MorphState.Morphed && budget.CanFormSwitch;
+
+			_battleScene.CallDeferred("update_turn_indicator",
+				unitId, budget.CanMove, budget.CanAct, formName, canMorph, canSwitch);
+			GD.Print($"  UI updated: CanMove={budget.CanMove}, CanAct={budget.CanAct}, Form={formName}");
 		}
 		else
 		{
@@ -692,10 +717,28 @@ namespace TokuTactics.Scenes.Battle
 	}
 
 	/// <summary>
+	/// Push current HP from a unit's active health pool to its visual bar.
+	/// </summary>
+	private void PushUnitHealthBar(string unitId)
+	{
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == unitId);
+		if (ranger != null)
+		{
+			var pool = ranger.ActiveHealthPool;
+			_gridVisual.Call("update_health_bar", unitId, pool.Current, pool.Maximum);
+			return;
+		}
+		var enemy = Context.Enemies.FirstOrDefault(e => e.Id == unitId);
+		if (enemy != null)
+			_gridVisual.Call("update_health_bar", unitId, enemy.Health.Current, enemy.Health.Maximum);
+	}
+
+	/// <summary>
 	/// End the current unit's turn and advance to the next one.
 	/// </summary>
 	public void EndCurrentUnitTurn()
 	{
+		if (_missionEnded) return;
 		GD.Print("[C#] EndCurrentUnitTurn called");
 
 		// Get the active unit from PhaseManager
@@ -757,8 +800,267 @@ namespace TokuTactics.Scenes.Battle
 
 		GD.Print($"=== Round {result.RoundNumber} Started — {result.NextUnitId}'s turn ===");
 
-		// UI update — presentation only
-		_battleScene.CallDeferred("update_turn_indicator", result.NextUnitId, true, true);
+		// UI update — presentation only, include morph state
+		var nextRanger = Context.Rangers.FirstOrDefault(r => r.Id == result.NextUnitId);
+		string nextFormName = nextRanger?.CurrentForm?.Data.Name ?? "";
+		bool nextCanMorph = nextRanger != null && nextRanger.MorphState == MorphState.Unmorphed;
+		bool nextCanSwitch = nextRanger != null && nextRanger.MorphState == MorphState.Morphed;
+		_battleScene.CallDeferred("update_turn_indicator",
+			result.NextUnitId, true, true, nextFormName, nextCanMorph, nextCanSwitch);
+	}
+
+	// === Morph / Form Switch ===
+
+	/// <summary>
+	/// Called from GDScript when the player presses M. Gates on loadout,
+	/// opens the loadout panel on first use, then morphs the active ranger.
+	/// </summary>
+	public void OnMorphPressed()
+	{
+		if (_missionEnded || _loadoutPanelOpen || _formSwitchPanelOpen) return;
+
+		var activeId = Context.PhaseManager.ActiveUnit?.Participant.ParticipantId;
+		if (activeId == null) return;
+
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == activeId);
+		if (ranger == null || ranger.MorphState != MorphState.Unmorphed) return;
+
+		if (!Context.ActionBudgets.TryGetValue(activeId, out var budget) || !budget.CanAct)
+		{
+			GD.Print("[C#] Cannot morph — no action available");
+			return;
+		}
+
+		var result = Context.LoadoutController.RequestMorph(ranger);
+		switch (result)
+		{
+			case MorphRequestResult.NeedsLoadout:
+				ShowLoadoutPanel();
+				break;
+			case MorphRequestResult.MorphComplete:
+				CompleteMorph(ranger);
+				break;
+			default:
+				GD.Print($"[C#] Morph failed: {result}");
+				break;
+		}
+	}
+
+	private bool _loadoutPanelOpen;
+
+	private void ShowLoadoutPanel()
+	{
+		var screenData = Context.LoadoutController.GetLoadoutScreenData();
+		var formList = new Godot.Collections.Array();
+		foreach (var form in screenData.AvailableForms)
+		{
+			formList.Add(new Godot.Collections.Dictionary
+			{
+				["id"] = form.FormData.Id,
+				["name"] = form.FormData.Name,
+				["type"] = form.TypeName,
+				["hp"] = (int)form.FormData.BaseHealth,
+				["range"] = form.FormData.BasicAttackRange,
+				["movement"] = form.FormData.MovementRange,
+			});
+		}
+		_loadoutPanelOpen = true;
+		_battleScene.Call("show_loadout_panel", formList, screenData.Budget);
+		GD.Print($"[C#] Loadout panel opened — {screenData.AvailableForms.Count} forms, budget {screenData.Budget}");
+	}
+
+	/// <summary>
+	/// Called from GDScript when the player confirms a loadout selection.
+	/// </summary>
+	public void OnLoadoutSubmitted(Godot.Collections.Array formIds)
+	{
+		var selectedIds = new List<string>();
+		foreach (var id in formIds)
+			selectedIds.Add(id.ToString());
+
+		var result = Context.LoadoutController.SubmitLoadout(selectedIds);
+		if (result != LoadoutResult.Accepted)
+		{
+			GD.Print($"[C#] Loadout rejected: {result}");
+			return;
+		}
+
+		_loadoutPanelOpen = false;
+		_battleScene.Call("hide_loadout_panel");
+		GD.Print($"[C#] Loadout accepted: [{string.Join(", ", selectedIds)}]");
+
+		// Re-attempt morph for the triggering ranger
+		var triggeringId = Context.LoadoutController.TriggeringRangerId;
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == triggeringId);
+		if (ranger != null)
+		{
+			var morphResult = Context.LoadoutController.RequestMorph(ranger);
+			if (morphResult == MorphRequestResult.MorphComplete)
+				CompleteMorph(ranger);
+		}
+	}
+
+	/// <summary>
+	/// Called from GDScript when the player cancels the loadout panel.
+	/// </summary>
+	public void OnLoadoutCancelled()
+	{
+		_loadoutPanelOpen = false;
+		_battleScene.Call("hide_loadout_panel");
+		GD.Print("[C#] Loadout cancelled");
+	}
+
+	private void CompleteMorph(Ranger ranger)
+	{
+		// Consume morph action (ends turn: CanMove, CanAct, CanFormSwitch all false)
+		if (Context.ActionBudgets.TryGetValue(ranger.Id, out var budget))
+			ConsumeMorphAction.Execute(budget);
+
+		// Occupy base form in the pool
+		Context.FormPool.OccupyForm(ranger.CurrentForm.Data.Id, ranger.Id);
+
+		// Update health bar (now showing form HP pool)
+		PushUnitHealthBar(ranger.Id);
+		UpdateTurnIndicator();
+
+		GD.Print($"[C#] {ranger.Id} morphed into {ranger.CurrentForm?.Data.Name}");
+
+		// Auto-end turn since morph consumes the full turn
+		EndCurrentUnitTurn();
+	}
+
+	/// <summary>
+	/// Called from GDScript when the player presses F. Opens the form switch panel
+	/// showing equipped forms with their availability status.
+	/// </summary>
+	public void OnFormSwitchPressed()
+	{
+		if (_missionEnded || _loadoutPanelOpen || _formSwitchPanelOpen) return;
+
+		var activeId = Context.PhaseManager.ActiveUnit?.Participant.ParticipantId;
+		if (activeId == null) return;
+
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == activeId);
+		if (ranger == null || ranger.MorphState != MorphState.Morphed) return;
+
+		if (!Context.ActionBudgets.TryGetValue(activeId, out var budget) || !budget.CanFormSwitch)
+		{
+			GD.Print("[C#] Cannot form switch this turn");
+			return;
+		}
+
+		ShowFormSwitchPanel(ranger);
+	}
+
+	private bool _formSwitchPanelOpen;
+
+	private void ShowFormSwitchPanel(Ranger ranger)
+	{
+		var formList = new Godot.Collections.Array();
+
+		// Always include base form (if not already in it)
+		if (ranger.CurrentForm?.Data.Id != Context.FormPool.BaseFormId)
+		{
+			formList.Add(new Godot.Collections.Dictionary
+			{
+				["id"] = Context.FormPool.BaseFormId,
+				["name"] = "Base Form",
+				["type"] = "Normal",
+				["available"] = true,
+				["status"] = "Available",
+				["is_current"] = false,
+			});
+		}
+
+		// Equipped non-base forms
+		foreach (var entry in Context.FormPool.GetPoolStatus())
+		{
+			if (entry.FormData.Id == Context.FormPool.BaseFormId) continue;
+			if (!entry.IsEquipped) continue;
+
+			var avail = Context.FormPool.CheckAvailability(entry.FormData.Id, ranger.Id);
+			bool isCurrent = ranger.CurrentForm?.Data.Id == entry.FormData.Id;
+
+			formList.Add(new Godot.Collections.Dictionary
+			{
+				["id"] = entry.FormData.Id,
+				["name"] = entry.FormData.Name,
+				["type"] = entry.FormData.Type.ToString(),
+				["available"] = avail == FormAvailability.Available && !isCurrent,
+				["status"] = isCurrent ? "Current" : avail.ToString(),
+				["is_current"] = isCurrent,
+			});
+		}
+
+		_formSwitchPanelOpen = true;
+		_battleScene.Call("show_form_switch_panel", formList);
+		GD.Print($"[C#] Form switch panel opened — {formList.Count} forms");
+	}
+
+	/// <summary>
+	/// Called from GDScript when the player picks a form to switch to.
+	/// </summary>
+	public void OnFormSwitchSelected(string formId)
+	{
+		var activeId = Context.PhaseManager.ActiveUnit?.Participant.ParticipantId;
+		if (activeId == null) return;
+
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == activeId);
+		if (ranger == null) return;
+
+		// Get the form data and instance
+		var formData = Context.ContentRegistry.GetForm(formId);
+		if (formData == null)
+		{
+			GD.Print($"[C#] Unknown form ID: {formId}");
+			return;
+		}
+
+		var newFormInstance = ranger.GetOrCreateFormInstance(formData);
+
+		// Execute switch — returns the previous form
+		var previousForm = ranger.SwitchForm(newFormInstance);
+		if (previousForm == null)
+		{
+			GD.Print("[C#] SwitchForm returned null — invalid switch");
+			return;
+		}
+
+		// Vacate old form (activates cooldown), occupy new form
+		int magModifier = (int)(ranger.Stats.Get(StatType.MAG) / 5.0f);
+		Context.FormPool.VacateForm(previousForm.Data.Id, activeId, magModifier);
+		Context.FormPool.OccupyForm(formId, activeId);
+
+		// Reset action budget — form switch is free and grants new move + act
+		if (Context.ActionBudgets.TryGetValue(activeId, out var budget))
+			ResetBudgetFromFormSwitch.Execute(budget);
+
+		// Close panel, update visuals
+		_formSwitchPanelOpen = false;
+		_battleScene.Call("hide_form_switch_panel");
+		PushUnitHealthBar(activeId);
+
+		// Clear old highlights before re-selecting with new form stats
+		if (_selectedUnitId != null) DeselectUnit();
+
+		UpdateTurnIndicator();
+
+		GD.Print($"[C#] {activeId} switched from {previousForm.Data.Name} to {formData.Name}");
+
+		// Auto-select the ranger so movement/attack range shows immediately
+		var pos = Context.Grid.GetUnitPosition(activeId);
+		if (pos.HasValue)
+			SelectUnit(activeId, pos.Value);
+	}
+
+	/// <summary>
+	/// Called from GDScript when the player cancels the form switch panel.
+	/// </summary>
+	public void OnFormSwitchCancelled()
+	{
+		_formSwitchPanelOpen = false;
+		_battleScene.Call("hide_form_switch_panel");
+		GD.Print("[C#] Form switch cancelled");
 	}
 
 	// === Enemy AI ===
@@ -855,14 +1157,13 @@ namespace TokuTactics.Scenes.Battle
 			if (combat.TargetDied)
 			{
 				GD.Print($"[C#] Ranger {decision.AttackTargetId} defeated!");
+				Context.Grid.RemoveUnit(decision.AttackTargetId);
 				_gridVisual.Call("remove_unit", decision.AttackTargetId);
+				Context.PhaseManager.CheckWinLoss();
 			}
 
 			if (combat.FormDied)
 				GD.Print($"[C#] Form destroyed: {combat.LostFormId}");
-
-			if (combat.MissionLost)
-				GD.Print("[C#] MISSION LOST");
 		}
 	}
 }
