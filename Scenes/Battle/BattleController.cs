@@ -10,6 +10,7 @@ using TokuTactics.Core.Grid;
 using TokuTactics.Commands.AI;
 using TokuTactics.Commands.Combat;
 using TokuTactics.Commands.Movement;
+using TokuTactics.Bricks.Movement;
 using TokuTactics.Commands.Phase;
 using TokuTactics.Commands.Loadout;
 using TokuTactics.Bricks.Shared;
@@ -807,12 +808,12 @@ namespace TokuTactics.Scenes.Battle
 		string unitId = _selectedUnitId;
 		var originalPos = _preMovePosition.Value;
 
-		// Undo grid move
-		Context.Grid.MoveUnit(unitId, originalPos);
+		// Undo grid move via brick
+		ExecuteGridMove.Execute(Context.Grid, unitId, originalPos);
 
-		// Restore movement budget
+		// Restore movement budget via brick
 		if (Context.ActionBudgets.TryGetValue(unitId, out var budget))
-			budget.CanMove = true;
+			RestoreMoveBudget.Execute(budget);
 
 		// Update visual
 		_gridVisual.Call("move_unit", unitId, new Vector2I(originalPos.Col, originalPos.Row));
