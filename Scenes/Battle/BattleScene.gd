@@ -76,22 +76,24 @@ func _unhandled_input(event):
 				battle_controller.OnFormSwitchCancelled()
 			get_viewport().set_input_as_handled()
 
-	# Click to interact with tiles
+	# Click to interact with tiles or unit sprites
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		# Convert screen position to world position (accounting for camera)
 		var world_pos = get_global_mouse_position()
-		# Convert world position to grid coordinates
+
+		# Primary: check if click hits a unit sprite directly
+		var sprite_unit = grid_visual.find_unit_at_world_pos(world_pos)
+		if sprite_unit != "":
+			var sprite_grid = grid_visual.get_unit_grid_pos(sprite_unit)
+			if sprite_grid != Vector2i(-1, -1):
+				print("Clicked unit: ", sprite_unit, " at ", sprite_grid)
+				if battle_controller:
+					battle_controller.OnTileClicked(sprite_grid.x, sprite_grid.y)
+				return
+
+		# Fallback: convert click to tile grid coordinates
 		var grid_pos = grid_visual.local_to_map(grid_visual.to_local(world_pos))
 		print("Clicked tile: ", grid_pos)
-
-		# Fallback: if no occupant at grid tile, check sprite hit detection
 		if battle_controller:
-			var sprite_unit = grid_visual.find_unit_at_world_pos(world_pos)
-			if sprite_unit != "":
-				var sprite_pos = grid_visual.get_unit_grid_pos(sprite_unit)
-				if sprite_pos != Vector2i(-1, -1):
-					grid_pos = sprite_pos
-					print("Sprite fallback: ", sprite_unit, " at ", grid_pos)
 			battle_controller.OnTileClicked(grid_pos.x, grid_pos.y)
 
 func zoom_camera(step: float):
