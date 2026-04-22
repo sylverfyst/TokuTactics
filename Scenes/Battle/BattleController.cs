@@ -14,8 +14,10 @@ using TokuTactics.Commands.Phase;
 using TokuTactics.Commands.Loadout;
 using TokuTactics.Bricks.Shared;
 using TokuTactics.Core.ActionEconomy;
+using TokuTactics.Core.Combat;
 using TokuTactics.Core.Form;
 using TokuTactics.Core.Stats;
+using TokuTactics.Core.Types;
 using TokuTactics.Entities.Rangers;
 
 namespace TokuTactics.Scenes.Battle
@@ -43,6 +45,17 @@ namespace TokuTactics.Scenes.Battle
 		private GridPosition? _selectedUnitPosition = null;
 	private Dictionary<GridPosition, int> _currentMovementRange = null;
 	private GridPosition? _previewedDestination = null;  // Destination being previewed before move confirmation
+
+	// === Target Selection State ===
+	private string _selectedTargetId = null;
+	private GridPosition? _selectedTargetPos = null;
+
+	// === Undo Move State ===
+	private GridPosition? _preMovePosition = null;
+	private bool _canUndoMove = false;
+
+	// === Type Reveal State ===
+	private HashSet<string> _revealedEnemyDataIds = new HashSet<string>();
 
 		// === Lifecycle ===
 
@@ -236,6 +249,8 @@ namespace TokuTactics.Scenes.Battle
 		{
 			_missionEnded = true;
 			GD.Print($"=== MISSION VICTORY === (Round {evt.RoundsElapsed})");
+			_battleScene.Call("hide_active_unit_panel");
+			_battleScene.Call("hide_enemy_panel");
 			_battleScene.Call("show_mission_result", "VICTORY", evt.RoundsElapsed);
 		}
 
@@ -243,6 +258,8 @@ namespace TokuTactics.Scenes.Battle
 		{
 			_missionEnded = true;
 			GD.Print($"=== MISSION DEFEAT === ({evt.FallenRangerId} fell, Round {evt.RoundsElapsed})");
+			_battleScene.Call("hide_active_unit_panel");
+			_battleScene.Call("hide_enemy_panel");
 			_battleScene.Call("show_mission_result", "DEFEAT", evt.RoundsElapsed);
 		}
 
@@ -277,65 +294,52 @@ namespace TokuTactics.Scenes.Battle
 			var clickedPos = new GridPosition(col, row);
 			GD.Print($"[C#] Tile clicked: ({col}, {row})");
 
-			// Check if there's a unit at this position
 			var tile = Context.Grid.GetTile(clickedPos);
 			var unitAtPosition = tile?.OccupantId;
 
+			bool isEnemy = unitAtPosition != null &&
+				Context.Enemies.Any(e => e.Id == unitAtPosition && e.IsAlive);
+			bool isRanger = unitAtPosition != null &&
+				Context.Rangers.Any(r => r.Id == unitAtPosition && r.IsAlive);
+
 			if (_selectedUnitId == null)
 			{
-				// No unit selected - try to select one
-				if (unitAtPosition != null)
-				{
-					// Check if it's a Ranger (player unit)
-					var ranger = Context.Rangers.FirstOrDefault(r => r.Id == unitAtPosition);
-					if (ranger != null && ranger.IsAlive)
-					{
-						SelectUnit(unitAtPosition, clickedPos);
-					}
-					else
-					{
-						GD.Print($"  Cannot select enemy unit: {unitAtPosition}");
-					}
-				}
+				// No ranger selected
+				if (isRanger)
+					SelectUnit(unitAtPosition, clickedPos);
+				else if (isEnemy)
+					SelectTarget(unitAtPosition, clickedPos);
 			}
 			else
 			{
-				// Unit already selected - try to move or attack
+				// Ranger is selected
 				if (clickedPos == _selectedUnitPosition)
 				{
-					// Clicked same unit - deselect
+					// Clicked own unit — deselect
+					DeselectTarget();
 					DeselectUnit();
 				}
-				else if (unitAtPosition != null)
+				else if (isEnemy)
 				{
-					// Clicked another unit — attack if enemy, switch selection if ranger
-					var isEnemy = Context.Enemies.Any(e => e.Id == unitAtPosition && e.IsAlive);
-					if (isEnemy)
-					{
-						TryAttackTarget(unitAtPosition, clickedPos);
-					}
+					// Clicked enemy — select as target (show info + weapon buttons)
+					SelectTarget(unitAtPosition, clickedPos);
+				}
+				else if (isRanger)
+				{
+					// Clicked another ranger — switch selection
+					DeselectTarget();
+					DeselectUnit();
+					SelectUnit(unitAtPosition, clickedPos);
+				}
+				else
+				{
+					// Clicked empty tile
+					DeselectTarget();
+
+					if (_previewedDestination.HasValue && _previewedDestination.Value == clickedPos)
+						ExecuteMove(clickedPos);
 					else
-					{
-						// Clicked a ranger — switch selection
-						DeselectUnit();
-						var ranger = Context.Rangers.FirstOrDefault(r => r.Id == unitAtPosition);
-						if (ranger != null && ranger.IsAlive)
-							SelectUnit(unitAtPosition, clickedPos);
-					}
-				}
-				else
-				{
-				// Clicked empty tile - preview or execute move
-				if (_previewedDestination.HasValue && _previewedDestination.Value == clickedPos)
-				{
-					// Clicking previewed destination again - confirm and execute move
-					ExecuteMove(clickedPos);
-				}
-				else
-				{
-					// Preview movement to this destination
-					PreviewMovement(clickedPos);
-				}
+						PreviewMovement(clickedPos);
 				}
 			}
 		}
@@ -468,6 +472,9 @@ namespace TokuTactics.Scenes.Battle
 			GD.Print($"  WARNING: _currentMovementRange is null!");
 		}
 
+		// Save pre-move position for undo
+		var preMove = _selectedUnitPosition.Value;
+
 		// Execute movement using the Command
 		var result = ExecuteMovement.Execute(
 			unitId: _selectedUnitId,
@@ -484,8 +491,11 @@ namespace TokuTactics.Scenes.Battle
 			return;
 		}
 
-		// Movement succeeded
-		GD.Print($"[C#] Moved {_selectedUnitId} from ({_selectedUnitPosition.Value.Col}, {_selectedUnitPosition.Value.Row}) to ({destination.Col}, {destination.Row})");
+		// Movement succeeded — enable undo
+		_preMovePosition = preMove;
+		_canUndoMove = true;
+
+		GD.Print($"[C#] Moved {_selectedUnitId} from ({preMove.Col}, {preMove.Row}) to ({destination.Col}, {destination.Row})");
 
 		// Update visual sprite position
 		var gridPos = new Vector2I(destination.Col, destination.Row);
@@ -510,6 +520,7 @@ namespace TokuTactics.Scenes.Battle
 
 		// Update turn indicator with current budget
 		UpdateTurnIndicator();
+		PushActiveUnitPanel();
 	}
 
 	/// <summary>
@@ -565,15 +576,15 @@ namespace TokuTactics.Scenes.Battle
 		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == unitId);
 		if (ranger == null) return;
 
-		var weapon = ranger.CurrentForm?.Data.WeaponA ?? ranger.BaseForm.Data.WeaponA;
-		if (weapon == null) return;
+		var form = ranger.CurrentForm ?? ranger.BaseForm;
+		int rangeA = form.Data.WeaponA?.Range ?? 0;
+		int rangeB = form.Data.WeaponB?.Range ?? 0;
+		int maxRange = System.Math.Max(rangeA, rangeB);
 
-		int range = weapon.Range;
-		GD.Print($"  Attack range: {range} (weapon: {weapon.Name})");
+		GD.Print($"  Attack range: {maxRange} (WeaponA: {form.Data.WeaponA?.Name} r{rangeA}, WeaponB: {form.Data.WeaponB?.Name} r{rangeB})");
 
-		// Find enemy targets in attack range using grid neighbors
 		var attackTiles = new Godot.Collections.Array();
-		var tilesInRange = Context.Grid.GetTilesInRange(position, range);
+		var tilesInRange = Context.Grid.GetTilesInRange(position, maxRange);
 		foreach (var tilePos in tilesInRange)
 		{
 			if (tilePos == position) continue;
@@ -593,34 +604,126 @@ namespace TokuTactics.Scenes.Battle
 		}
 	}
 
-	/// <summary>
-	/// Attempt to attack an enemy at the given position.
-	/// </summary>
-	private void TryAttackTarget(string targetId, GridPosition targetPos)
-	{
-		GD.Print($"[C#] TryAttackTarget: {_selectedUnitId} → {targetId}");
+	// === Target Selection ===
 
-		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == _selectedUnitId);
-		if (ranger == null) return;
+	/// <summary>
+	/// Select an enemy as a target, showing their info panel.
+	/// If a ranger is selected and can attack, weapon buttons are included.
+	/// </summary>
+	private void SelectTarget(string targetId, GridPosition pos)
+	{
+		_selectedTargetId = targetId;
+		_selectedTargetPos = pos;
 
 		var enemy = Context.Enemies.FirstOrDefault(e => e.Id == targetId);
 		if (enemy == null) return;
 
-		if (!Context.ActionBudgets.TryGetValue(_selectedUnitId, out var budget))
+		// Build enemy info for GDScript
+		string typeName = "???";
+		bool typeRevealed = _revealedEnemyDataIds.Contains(enemy.Data.Id);
+		if (typeRevealed && enemy.Data.Type.HasValue)
+			typeName = enemy.Data.Type.Value.ToString();
+		else if (typeRevealed || !enemy.Data.Type.HasValue)
+			typeName = "Normal";
+
+		var enemyInfo = new Godot.Collections.Dictionary
 		{
-			GD.Print("  No action budget");
-			return;
+			["id"] = enemy.Id,
+			["name"] = enemy.Data.Name,
+			["tier"] = enemy.Data.Tier.ToString(),
+			["type"] = typeName,
+			["type_revealed"] = typeRevealed,
+			["hp_current"] = (int)enemy.Health.Current,
+			["hp_max"] = (int)enemy.Health.Maximum,
+		};
+
+		// Check if active ranger can attack this target
+		bool canAttack = false;
+		if (_selectedUnitId != null && _selectedUnitPosition.HasValue)
+		{
+			var ranger = Context.Rangers.FirstOrDefault(r => r.Id == _selectedUnitId);
+			if (ranger != null && Context.ActionBudgets.TryGetValue(_selectedUnitId, out var b) && b.CanAct)
+			{
+				var form = ranger.CurrentForm ?? ranger.BaseForm;
+				int rangeA = form.Data.WeaponA?.Range ?? 0;
+				int rangeB = form.Data.WeaponB?.Range ?? 0;
+				int maxRange = System.Math.Max(rangeA, rangeB);
+				int distance = _selectedUnitPosition.Value.ManhattanDistance(pos);
+				canAttack = distance <= maxRange;
+
+				if (canAttack)
+				{
+					enemyInfo["can_attack"] = true;
+					if (form.Data.WeaponA != null)
+					{
+						bool weaponAInRange = distance <= form.Data.WeaponA.Range;
+						enemyInfo["weapon_a_name"] = form.Data.WeaponA.Name;
+						enemyInfo["weapon_a_power"] = form.Data.WeaponA.BasePower;
+						enemyInfo["weapon_a_range"] = form.Data.WeaponA.Range;
+						enemyInfo["weapon_a_status"] = form.Data.WeaponA.StatusEffect?.EffectId ?? "";
+						enemyInfo["weapon_a_in_range"] = weaponAInRange;
+					}
+					if (form.Data.WeaponB != null)
+					{
+						bool weaponBInRange = distance <= form.Data.WeaponB.Range;
+						enemyInfo["weapon_b_name"] = form.Data.WeaponB.Name;
+						enemyInfo["weapon_b_power"] = form.Data.WeaponB.BasePower;
+						enemyInfo["weapon_b_range"] = form.Data.WeaponB.Range;
+						enemyInfo["weapon_b_status"] = form.Data.WeaponB.StatusEffect?.EffectId ?? "";
+						enemyInfo["weapon_b_in_range"] = weaponBInRange;
+					}
+				}
+			}
 		}
 
-		// Get weapon data
-		var weapon = ranger.CurrentForm?.Data.WeaponA ?? ranger.BaseForm.Data.WeaponA;
-		if (weapon == null)
-		{
-			GD.Print("  No weapon available");
-			return;
-		}
+		if (!canAttack)
+			enemyInfo["can_attack"] = false;
 
-		// Execute attack via command
+		_gridVisual.Call("highlight_active_unit", targetId);
+		_battleScene.Call("show_enemy_panel", enemyInfo);
+		GD.Print($"[C#] Target selected: {targetId}");
+	}
+
+	/// <summary>
+	/// Deselect the current target and hide enemy info panel.
+	/// </summary>
+	private void DeselectTarget()
+	{
+		if (_selectedTargetId != null)
+		{
+			_gridVisual.Call("clear_unit_highlight");
+			if (_selectedUnitId != null)
+				_gridVisual.Call("highlight_active_unit", _selectedUnitId);
+		}
+		_selectedTargetId = null;
+		_selectedTargetPos = null;
+		_battleScene.Call("hide_enemy_panel");
+	}
+
+	/// <summary>
+	/// Attack the selected target with the specified weapon slot.
+	/// Called from GDScript when the player clicks a weapon button.
+	/// </summary>
+	public void AttackWithWeapon(string slot)
+	{
+		if (_missionEnded || _selectedUnitId == null || _selectedTargetId == null) return;
+
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == _selectedUnitId);
+		if (ranger == null) return;
+		var enemy = Context.Enemies.FirstOrDefault(e => e.Id == _selectedTargetId);
+		if (enemy == null) return;
+
+		if (!Context.ActionBudgets.TryGetValue(_selectedUnitId, out var budget) || !budget.CanAct)
+			return;
+
+		var form = ranger.CurrentForm ?? ranger.BaseForm;
+		var weapon = slot == "B" ? form.Data.WeaponB : form.Data.WeaponA;
+		if (weapon == null) return;
+
+		if (!_selectedUnitPosition.HasValue || !_selectedTargetPos.HasValue) return;
+		var targetPos = _selectedTargetPos.Value;
+
+		// Execute attack
 		var result = ExecuteAttack.Execute(
 			attackerPos: _selectedUnitPosition.Value,
 			targetPos: targetPos,
@@ -634,22 +737,42 @@ namespace TokuTactics.Scenes.Battle
 		if (!result.Success)
 		{
 			GD.Print($"  Attack failed: {result.FailureReason}");
-			// Keep selection intact — don't deselect on failed attack
 			return;
 		}
 
-		// === Handle combat results ===
-		var combat = result.CombatResult;
-		GD.Print($"[C#] Attack landed! Damage: {combat.TotalDamage}, Dodged: {combat.PrimaryDamage?.WasDodged}");
+		// Reveal enemy type on first attack
+		if (!_revealedEnemyDataIds.Contains(enemy.Data.Id))
+		{
+			_revealedEnemyDataIds.Add(enemy.Data.Id);
+			GD.Print($"[C#] Enemy type revealed: {enemy.Data.Name} is {enemy.Data.Type?.ToString() ?? "Normal"}");
+		}
 
-		// Handle target death
+		// Can't undo move after attacking
+		_canUndoMove = false;
+		_preMovePosition = null;
+
+		var combat = result.CombatResult;
+		GD.Print($"[C#] Attack with {weapon.Name}! Damage: {combat.TotalDamage}");
+
+		// Show effectiveness text
+		var matchup = combat.PrimaryDamage?.Matchup;
+		if (matchup.HasValue && matchup.Value != MatchupResult.Neutral)
+		{
+			string effectText = matchup.Value == MatchupResult.Strong ? "Super Effective!" :
+							   matchup.Value == MatchupResult.DoubleStrong ? "Super Effective!!" :
+							   matchup.Value == MatchupResult.Weak ? "Not Very Effective..." :
+							   matchup.Value == MatchupResult.DoubleWeak ? "Not Very Effective..." : "";
+			bool isSuperEffective = matchup.Value == MatchupResult.Strong || matchup.Value == MatchupResult.DoubleStrong;
+			if (effectText != "")
+				_battleScene.Call("show_effectiveness_text", effectText, isSuperEffective);
+		}
+
+		// Handle death
 		if (combat.TargetDied)
 		{
-			GD.Print($"[C#] Enemy {targetId} defeated!");
-			Context.Grid.RemoveUnit(targetId);
-			_gridVisual.Call("remove_unit", targetId);
-
-			// Check win condition
+			GD.Print($"[C#] Enemy {_selectedTargetId} defeated!");
+			Context.Grid.RemoveUnit(_selectedTargetId);
+			_gridVisual.Call("remove_unit", _selectedTargetId);
 			Context.PhaseManager.CheckWinLoss();
 		}
 
@@ -659,18 +782,54 @@ namespace TokuTactics.Scenes.Battle
 		if (combat.MissionLost)
 			GD.Print("[C#] MISSION LOST — unmorphed ranger died");
 
-		// Clear highlights and deselect after successful attack
+		// Deselect target and unit
+		DeselectTarget();
 		DeselectUnit();
 
-		// Update turn indicator with new budget state
 		UpdateTurnIndicator();
+		PushActiveUnitPanel();
 
-		// Auto-end turn if no actions remain
 		if (budget.IsTurnComplete)
 		{
 			GD.Print("[C#] No actions remaining — auto-ending turn");
 			EndCurrentUnitTurn();
 		}
+	}
+
+	/// <summary>
+	/// Undo the last move. Called from GDScript when the player presses U.
+	/// Only available before attacking or switching forms.
+	/// </summary>
+	public void UndoMove()
+	{
+		if (_missionEnded || !_canUndoMove || _preMovePosition == null || _selectedUnitId == null) return;
+
+		string unitId = _selectedUnitId;
+		var originalPos = _preMovePosition.Value;
+
+		// Undo grid move
+		Context.Grid.MoveUnit(unitId, originalPos);
+
+		// Restore movement budget
+		if (Context.ActionBudgets.TryGetValue(unitId, out var budget))
+			budget.CanMove = true;
+
+		// Update visual
+		_gridVisual.Call("move_unit", unitId, new Vector2I(originalPos.Col, originalPos.Row));
+
+		// Clear state
+		DeselectTarget();
+		DeselectUnit();
+
+		_canUndoMove = false;
+		_preMovePosition = null;
+
+		// Re-select at original position
+		SelectUnit(unitId, originalPos);
+
+		GD.Print($"[C#] Move undone — {unitId} returned to ({originalPos.Col}, {originalPos.Row})");
+		UpdateTurnIndicator();
+		PushActiveUnitPanel();
 	}
 
 	/// <summary>
@@ -688,7 +847,7 @@ namespace TokuTactics.Scenes.Battle
 		bool canSwitch = ranger != null && ranger.MorphState == MorphState.Morphed && b.CanFormSwitch;
 
 		_battleScene.CallDeferred("update_turn_indicator",
-			activeId, b.CanMove, b.CanAct, formName, canMorph, canSwitch);
+			activeId, b.CanMove, b.CanAct, formName, canMorph, canSwitch, _canUndoMove);
 	}
 
 	/// <summary>
@@ -697,6 +856,10 @@ namespace TokuTactics.Scenes.Battle
 	/// </summary>
 	private void BeginAndShowUnitTurn(string unitId)
 	{
+		// Clear undo state from previous turn
+		_canUndoMove = false;
+		_preMovePosition = null;
+
 		Context.BeginUnitTurn(unitId);
 
 		if (Context.ActionBudgets.TryGetValue(unitId, out var budget))
@@ -707,13 +870,70 @@ namespace TokuTactics.Scenes.Battle
 			bool canSwitch = ranger != null && ranger.MorphState == MorphState.Morphed && budget.CanFormSwitch;
 
 			_battleScene.CallDeferred("update_turn_indicator",
-				unitId, budget.CanMove, budget.CanAct, formName, canMorph, canSwitch);
+				unitId, budget.CanMove, budget.CanAct, formName, canMorph, canSwitch, false);
 			GD.Print($"  UI updated: CanMove={budget.CanMove}, CanAct={budget.CanAct}, Form={formName}");
 		}
 		else
 		{
 			GD.Print($"  WARNING: No ActionBudget found for {unitId}");
 		}
+
+		PushActiveUnitPanel();
+	}
+
+	/// <summary>
+	/// Push the active unit's info to the GDScript active unit panel.
+	/// </summary>
+	private void PushActiveUnitPanel()
+	{
+		var activeId = Context.PhaseManager.ActiveUnit?.Participant.ParticipantId;
+		if (activeId == null)
+		{
+			_battleScene.Call("hide_active_unit_panel");
+			return;
+		}
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == activeId);
+		if (ranger == null)
+		{
+			_battleScene.Call("hide_active_unit_panel");
+			return;
+		}
+
+		var form = ranger.CurrentForm ?? ranger.BaseForm;
+		var pool = ranger.ActiveHealthPool;
+		Context.ActionBudgets.TryGetValue(activeId, out var budget);
+
+		var data = new Godot.Collections.Dictionary
+		{
+			["id"] = activeId,
+			["name"] = ranger.Name,
+			["form_name"] = form?.Data.Name ?? "Unmorphed",
+			["form_type"] = form?.Data.Type.ToString() ?? "Normal",
+			["hp_current"] = (int)pool.Current,
+			["hp_max"] = (int)pool.Maximum,
+			["can_act"] = budget?.CanAct ?? false,
+			["can_move"] = budget?.CanMove ?? false,
+			["can_undo"] = _canUndoMove,
+		};
+
+		if (form?.Data.WeaponA != null)
+		{
+			var w = form.Data.WeaponA;
+			data["weapon_a_name"] = w.Name;
+			data["weapon_a_power"] = w.BasePower;
+			data["weapon_a_range"] = w.Range;
+			data["weapon_a_status"] = w.StatusEffect?.EffectId ?? "";
+		}
+		if (form?.Data.WeaponB != null)
+		{
+			var w = form.Data.WeaponB;
+			data["weapon_b_name"] = w.Name;
+			data["weapon_b_power"] = w.BasePower;
+			data["weapon_b_range"] = w.Range;
+			data["weapon_b_status"] = w.StatusEffect?.EffectId ?? "";
+		}
+
+		_battleScene.Call("update_active_unit_panel", data);
 	}
 
 	/// <summary>
@@ -740,6 +960,12 @@ namespace TokuTactics.Scenes.Battle
 	{
 		if (_missionEnded) return;
 		GD.Print("[C#] EndCurrentUnitTurn called");
+
+		// Clear undo and target state
+		_canUndoMove = false;
+		_preMovePosition = null;
+		DeselectTarget();
+		_battleScene.Call("hide_active_unit_panel");
 
 		// Get the active unit from PhaseManager
 		if (Context.PhaseManager.ActiveUnit == null)
@@ -806,7 +1032,7 @@ namespace TokuTactics.Scenes.Battle
 		bool nextCanMorph = nextRanger != null && nextRanger.MorphState == MorphState.Unmorphed;
 		bool nextCanSwitch = nextRanger != null && nextRanger.MorphState == MorphState.Morphed;
 		_battleScene.CallDeferred("update_turn_indicator",
-			result.NextUnitId, true, true, nextFormName, nextCanMorph, nextCanSwitch);
+			result.NextUnitId, true, true, nextFormName, nextCanMorph, nextCanSwitch, false);
 	}
 
 	// === Morph / Form Switch ===
@@ -912,6 +1138,10 @@ namespace TokuTactics.Scenes.Battle
 
 	private void CompleteMorph(Ranger ranger)
 	{
+		// Clear undo state — morph ends the turn
+		_canUndoMove = false;
+		_preMovePosition = null;
+
 		// Consume morph action (ends turn: CanMove, CanAct, CanFormSwitch all false)
 		if (Context.ActionBudgets.TryGetValue(ranger.Id, out var budget))
 			ConsumeMorphAction.Execute(budget);
@@ -1026,6 +1256,10 @@ namespace TokuTactics.Scenes.Battle
 			return;
 		}
 
+		// Clear undo state — form switch resets the action economy
+		_canUndoMove = false;
+		_preMovePosition = null;
+
 		// Vacate old form (activates cooldown), occupy new form
 		int magModifier = (int)(ranger.Stats.Get(StatType.MAG) / 5.0f);
 		Context.FormPool.VacateForm(previousForm.Data.Id, activeId, magModifier);
@@ -1044,6 +1278,7 @@ namespace TokuTactics.Scenes.Battle
 		if (_selectedUnitId != null) DeselectUnit();
 
 		UpdateTurnIndicator();
+		PushActiveUnitPanel();
 
 		GD.Print($"[C#] {activeId} switched from {previousForm.Data.Name} to {formData.Name}");
 

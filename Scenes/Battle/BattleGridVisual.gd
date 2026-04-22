@@ -465,5 +465,31 @@ func _create_destination_outline(pos: Vector2i) -> Polygon2D:
 	outline_line.z_index = 14
 	
 	poly.add_child(outline_line)
-	
+
 	return poly
+
+## ===== SPRITE CLICK DETECTION =====
+
+## Find the unit whose sprite is closest to the given world position.
+## Returns the unit_id or "" if no unit is close enough.
+func find_unit_at_world_pos(world_pos: Vector2) -> String:
+	# Convert world pos to local space (accounts for TileMapLayer transform)
+	var local_pos = to_local(world_pos)
+	var best_id = ""
+	var best_dist = 12.0  # Max distance in local (tile) pixels
+	for unit_id in unit_sprites:
+		var sprite = unit_sprites[unit_id]
+		var dist = local_pos.distance_to(sprite.position)
+		if dist < best_dist:
+			best_dist = dist
+			best_id = unit_id
+	return best_id
+
+## Get the grid position of a unit by its ID.
+## Returns Vector2i(-1, -1) if not found.
+func get_unit_grid_pos(unit_id: String) -> Vector2i:
+	if not unit_sprites.has(unit_id):
+		return Vector2i(-1, -1)
+	var sprite = unit_sprites[unit_id]
+	# Convert sprite local position back to grid coords
+	return local_to_map(sprite.position)
