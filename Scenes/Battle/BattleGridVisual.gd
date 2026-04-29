@@ -113,6 +113,8 @@ func clear_highlights():
 
 # Unit sprites dictionary: unit_id -> Sprite2D
 var unit_sprites = {}
+# Authoritative grid positions: unit_id -> Vector2i (set on spawn/move)
+var unit_grid_positions = {}
 
 # Character sprite sheet (8-directional idle sprites, clean and simple)
 const SPRITE_SHEET_PATH = "res://Assets/Sprites/idle animation colors.png"
@@ -197,6 +199,7 @@ func spawn_unit(unit_id: String, grid_pos: Vector2i, unit_type: String, color: S
 	# Add to scene
 	add_child(sprite)
 	unit_sprites[unit_id] = sprite
+	unit_grid_positions[unit_id] = grid_pos
 
 	# Add a health bar as a child of the sprite (inherits transform)
 	var faction_color = Color(0.3, 0.85, 0.35) if unit_type == "ranger" else Color(0.9, 0.25, 0.25)
@@ -207,6 +210,7 @@ func move_unit(unit_id: String, new_grid_pos: Vector2i):
 	if unit_sprites.has(unit_id):
 		var sprite = unit_sprites[unit_id]
 		sprite.position = get_tile_center(new_grid_pos)
+		unit_grid_positions[unit_id] = new_grid_pos
 		print("Moved unit ", unit_id, " to grid pos ", new_grid_pos)
 	else:
 		print("Warning: Cannot move unit ", unit_id, " - sprite not found")
@@ -217,6 +221,7 @@ func remove_unit(unit_id: String):
 		var sprite = unit_sprites[unit_id]
 		sprite.queue_free()
 		unit_sprites.erase(unit_id)
+		unit_grid_positions.erase(unit_id)
 		print("Removed unit sprite: ", unit_id)
 	else:
 		print("Warning: Cannot remove unit ", unit_id, " - sprite not found")
@@ -465,5 +470,29 @@ func _create_destination_outline(pos: Vector2i) -> Polygon2D:
 	outline_line.z_index = 14
 	
 	poly.add_child(outline_line)
-	
+
 	return poly
+
+## ===== SPRITE CLICK DETECTION =====
+
+## Find the unit whose sprite is closest to the given world position.
+## Returns the unit_id or "" if no unit is close enough.
+func find_unit_at_world_pos(world_pos: Vector2) -> String:
+	# Convert world pos to local space (accounts for TileMapLayer transform)
+	var local_pos = to_local(world_pos)
+	var best_id = ""
+	var best_dist = 12.0  # Max distance in local (tile) pixels
+	for unit_id in unit_sprites:
+		var sprite = unit_sprites[unit_id]
+		var dist = local_pos.distance_to(sprite.position)
+		if dist < best_dist:
+			best_dist = dist
+			best_id = unit_id
+	return best_id
+
+## Get the grid position of a unit by its ID.
+## Returns Vector2i(-1, -1) if not found.
+func get_unit_grid_pos(unit_id: String) -> Vector2i:
+	if unit_grid_positions.has(unit_id):
+		return unit_grid_positions[unit_id]
+	return Vector2i(-1, -1)

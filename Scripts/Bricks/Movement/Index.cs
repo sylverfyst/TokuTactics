@@ -7,4 +7,5 @@ namespace TokuTactics.Bricks.Movement
     // CheckActionBudget - Checks if unit has movement actions remaining
     // ExecuteGridMove - Moves a unit to a new position on the battle grid
     // ConsumeMoveBudget - Consumes the movement action from a unit's budget
+    // RestoreMoveBudget - Restores movement action on undo (before attack)
 }

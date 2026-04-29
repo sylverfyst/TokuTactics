@@ -99,6 +99,7 @@ namespace TokuTactics.Tests
             RunSuite("CheckActionBudget", Bricks.Movement.CheckActionBudgetTests.Run, ref passed, ref failed);
             RunSuite("ExecuteGridMove", Bricks.Movement.ExecuteGridMoveTests.Run, ref passed, ref failed);
             RunSuite("ConsumeMoveBudget", Bricks.Movement.ConsumeMoveBudgetTests.Run, ref passed, ref failed);
+            RunSuite("RestoreMoveBudget", Bricks.Movement.RestoreMoveBudgetTests.Run, ref passed, ref failed);
 
             // BCO Bricks - Phase
             RunSuite("CheckRangerDefeat", Bricks.Phase.CheckRangerDefeatTests.Run, ref passed, ref failed);
