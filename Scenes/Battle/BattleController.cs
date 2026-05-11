@@ -673,6 +673,25 @@ namespace TokuTactics.Scenes.Battle
 						enemyInfo["weapon_b_status"] = form.Data.WeaponB.StatusEffect?.EffectId ?? "";
 						enemyInfo["weapon_b_in_range"] = weaponBInRange;
 					}
+
+					// Type matchup multiplier (only if enemy type is revealed)
+					if (typeRevealed && enemy.Data.Type.HasValue)
+					{
+						var matchup = Context.TypeChart.Resolve(ranger.DualType, enemy.Data.Type.Value);
+						float multiplier = matchup switch
+						{
+							MatchupResult.DoubleStrong => 2.0f,
+							MatchupResult.Strong => 1.5f,
+							MatchupResult.Weak => 0.5f,
+							MatchupResult.DoubleWeak => 0.25f,
+							_ => 1.0f
+						};
+						if (matchup != MatchupResult.Neutral)
+						{
+							enemyInfo["type_multiplier"] = multiplier;
+							enemyInfo["type_strong"] = matchup == MatchupResult.Strong || matchup == MatchupResult.DoubleStrong;
+						}
+					}
 				}
 			}
 		}
@@ -683,6 +702,37 @@ namespace TokuTactics.Scenes.Battle
 		_gridVisual.Call("highlight_active_unit", targetId);
 		_battleScene.Call("show_enemy_panel", enemyInfo);
 		GD.Print($"[C#] Target selected: {targetId}");
+	}
+
+	/// <summary>
+	/// Show attack range tiles for a specific weapon. Called from GDScript
+	/// when the player hovers a weapon button, so they can see which tiles
+	/// that weapon reaches before committing.
+	/// </summary>
+	public void ShowWeaponRangePreview(string slot)
+	{
+		if (_selectedUnitId == null || !_selectedUnitPosition.HasValue) return;
+		var ranger = Context.Rangers.FirstOrDefault(r => r.Id == _selectedUnitId);
+		if (ranger == null) return;
+		var form = ranger.CurrentForm ?? ranger.BaseForm;
+		var weapon = slot == "B" ? form.Data.WeaponB : form.Data.WeaponA;
+		if (weapon == null) return;
+
+		_gridVisual.Call("clear_highlights");
+		var attackTiles = new Godot.Collections.Array();
+		var tilesInRange = Context.Grid.GetTilesInRange(_selectedUnitPosition.Value, weapon.Range);
+		foreach (var tilePos in tilesInRange)
+		{
+			if (tilePos == _selectedUnitPosition.Value) continue;
+			attackTiles.Add(new Vector2I(tilePos.Col, tilePos.Row));
+		}
+		if (attackTiles.Count > 0)
+			_gridVisual.Call("highlight_tiles", attackTiles, "attack");
+	}
+
+	public void ClearWeaponRangePreview()
+	{
+		_gridVisual.Call("clear_highlights");
 	}
 
 	/// <summary>

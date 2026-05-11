@@ -526,17 +526,34 @@ func show_enemy_panel(info: Dictionary):
 		atk_title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
 		vbox.add_child(atk_title)
 
+		# Build multiplier suffix for weapon buttons (only if type revealed)
+		var mult_text = ""
+		var mult_color = Color.WHITE
+		if info.has("type_multiplier"):
+			var m = info["type_multiplier"]
+			mult_text = "  x" + str(snapped(m, 0.01))
+			if info.get("type_strong", false):
+				mult_color = Color(0.3, 1.0, 0.4)  # Green — super effective
+			else:
+				mult_color = Color(1.0, 0.35, 0.3)  # Red — not very effective
+
 		if info.has("weapon_a_name"):
 			var btn_a = Button.new()
 			var wa_text = str(info["weapon_a_name"]) + " (" + str(snapped(info.get("weapon_a_power", 0), 0.1)) + " Pow, " + str(info.get("weapon_a_range", 0)) + " Rng"
 			if info.get("weapon_a_status", "") != "":
 				wa_text += ", " + str(info["weapon_a_status"])
 			wa_text += ")"
+			if mult_text != "":
+				wa_text += mult_text
 			btn_a.text = "A: " + wa_text
 			btn_a.disabled = not info.get("weapon_a_in_range", false)
 			btn_a.add_theme_font_size_override("font_size", 14)
-			btn_a.custom_minimum_size = Vector2(280, 32)
+			btn_a.custom_minimum_size = Vector2(320, 32)
+			if mult_text != "":
+				btn_a.add_theme_color_override("font_color", mult_color)
 			btn_a.pressed.connect(func(): _on_attack_weapon("A"))
+			btn_a.mouse_entered.connect(func(): _on_weapon_hover("A"))
+			btn_a.mouse_exited.connect(func(): _on_weapon_unhover())
 			vbox.add_child(btn_a)
 
 		if info.has("weapon_b_name"):
@@ -545,11 +562,17 @@ func show_enemy_panel(info: Dictionary):
 			if info.get("weapon_b_status", "") != "":
 				wb_text += ", " + str(info["weapon_b_status"])
 			wb_text += ")"
+			if mult_text != "":
+				wb_text += mult_text
 			btn_b.text = "B: " + wb_text
 			btn_b.disabled = not info.get("weapon_b_in_range", false)
 			btn_b.add_theme_font_size_override("font_size", 14)
-			btn_b.custom_minimum_size = Vector2(280, 32)
+			btn_b.custom_minimum_size = Vector2(320, 32)
+			if mult_text != "":
+				btn_b.add_theme_color_override("font_color", mult_color)
 			btn_b.pressed.connect(func(): _on_attack_weapon("B"))
+			btn_b.mouse_entered.connect(func(): _on_weapon_hover("B"))
+			btn_b.mouse_exited.connect(func(): _on_weapon_unhover())
 			vbox.add_child(btn_b)
 
 	_enemy_panel.add_child(vbox)
@@ -570,6 +593,14 @@ func hide_enemy_panel():
 func _on_attack_weapon(slot: String):
 	if battle_controller:
 		battle_controller.AttackWithWeapon(slot)
+
+func _on_weapon_hover(slot: String):
+	if battle_controller:
+		battle_controller.ShowWeaponRangePreview(slot)
+
+func _on_weapon_unhover():
+	if battle_controller:
+		battle_controller.ClearWeaponRangePreview()
 
 # === Effectiveness Text ===
 
